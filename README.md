@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 Mizo
+#  Mizo
 ### Real-Time Action Recognition with LSTM & MediaPipe
 
 *Classify gestures and body actions live through your webcam using deep learning.*
