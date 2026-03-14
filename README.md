@@ -259,7 +259,6 @@ accuracy_score(ytrue, yhat)               # overall accuracy
 - [ ] Add more default actions / sign language vocabulary
 - [ ] Export model to TensorFlow Lite for mobile deployment
 - [ ] GUI wrapper for non-technical users
-- [ ] Multi-person detection support
 - [ ] Web-based demo using TensorFlow.js
 
 Have an idea? [Open a feature request](../../issues) 🙌
