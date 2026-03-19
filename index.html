@@ -1,1457 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MIZO — Irish Sign Language Recognition</title>
-<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --phosphor: #1A3FFF;
-    --phosphor-dim: #9A9FAF;
-    --phosphor-bright: #4466FF;
-    --thermal-red: #FF1A1A;
-    --thermal-orange: #FF1A1A;
-    --thermal-yellow: #FF4444;
-    --thermal-cyan: #1A3FFF;
-    --thermal-blue: #000033;
-    --radar-green: #FF1A1A;
-    --data-amber: #FF3300;
-    --bg: #000000;
-    --bg-deep: #000000;
-    --bg-panel: #06000F;
-    --grid-color: #0A0A2A;
-    --dot-color: #080018;
-    --border-phosphor: 1px solid #1A3FFF33;
-    --border-bright: 1px solid #1A3FFF66;
-    --accent-red: #FF1A1A;
-    --accent-blue: #1A3FFF;
-  }
-
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--phosphor);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 14px;
-    line-height: 1.6;
-    overflow-x: hidden;
-    cursor: crosshair;
-  }
-
-  /* Full-page Bayer dither — subtle texture over everything */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.025'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.015'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.02'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.01'/%3E%3Crect x='1' y='4' width='1' height='1' fill='%23FF1A1A' opacity='0.012'/%3E%3Crect x='5' y='4' width='1' height='1' fill='%23FF1A1A' opacity='0.02'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.015'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.025'/%3E%3C/svg%3E");
-    background-size: 8px 8px;
-    pointer-events: none;
-    z-index: 9998;
-  }
-
-  /* SCANLINE OVERLAY */
-  body::after {
-    content: '';
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* DOT GRID BACKGROUND */
-  .dot-grid {
-    background-image: radial-gradient(circle, #1A3FFF16 1px, transparent 1px);
-    background-size: 22px 22px;
-  }
-
-  /* ORNAMENTAL QUATREFOIL PATTERN — ref images 2 & 3 */
-  .ornament-bg {
-    position: relative;
-  }
-  .ornament-bg::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image:
-      radial-gradient(circle at 50% 50%, transparent 28%, rgba(26,63,255,0.5) 29%, rgba(26,63,255,0.5) 33%, transparent 34%),
-      radial-gradient(circle at 0% 50%, transparent 28%, rgba(26,63,255,0.5) 29%, rgba(26,63,255,0.5) 33%, transparent 34%),
-      radial-gradient(circle at 100% 50%, transparent 28%, rgba(26,63,255,0.5) 29%, rgba(26,63,255,0.5) 33%, transparent 34%),
-      radial-gradient(circle at 50% 0%, transparent 28%, rgba(26,63,255,0.5) 29%, rgba(26,63,255,0.5) 33%, transparent 34%),
-      radial-gradient(circle at 50% 100%, transparent 28%, rgba(26,63,255,0.5) 29%, rgba(26,63,255,0.5) 33%, transparent 34%);
-    background-size: 48px 48px;
-    opacity: 0.12;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* DITHER overlay — 4×4 ordered pattern */
-  .dither::after {
-    content: '';
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.06'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.06'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 0;
-  }
-
-  /* Halftone dither — larger dots for hero fade */
-  .dither-hero {
-    position: relative;
-  }
-  .dither-hero::after {
-    content: '';
-    position: absolute; inset: 0;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.09'/%3E%3Crect x='3' y='3' width='1' height='1' fill='%231A3FFF' opacity='0.09'/%3E%3Crect x='1' y='4' width='1' height='1' fill='%23FF1A1A' opacity='0.04'/%3E%3Crect x='4' y='1' width='1' height='1' fill='%23FF1A1A' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none; z-index: 0;
-  }
-
-  /* Bayer-style gradient dither strip used as section divider */
-  .dither-strip {
-    height: 32px;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.7'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.5'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.3'/%3E%3Crect x='1' y='4' width='1' height='1' fill='%231A3FFF' opacity='0.4'/%3E%3Crect x='5' y='4' width='1' height='1' fill='%23FF1A1A' opacity='0.3'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.5'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.7'/%3E%3C/svg%3E");
-    background-size: 8px 8px;
-    border-top: 1px solid #1A3FFF20;
-    border-bottom: 1px solid #FF1A1A20;
-  }
-
-  /* Red accent */
-  .red { color: #FF1A1A !important; }
-  .blue { color: #1A3FFF !important; }
-
-  /* GRID LINE BACKGROUND */
-  .grid-bg {
-    background-image:
-      linear-gradient(rgba(26,63,255,0.07) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(26,63,255,0.07) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-
-  /* ================== NAVIGATION ================== */
-  nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 10000;
-    background: rgba(0,0,0,0.96);
-    border-bottom: 1px solid #1A3FFF33;
-    backdrop-filter: blur(4px);
-    padding: 0 2rem;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='12' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.07'/%3E%3Ccircle cx='36' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.07'/%3E%3Ccircle cx='24' cy='12' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.07'/%3E%3Ccircle cx='24' cy='36' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.07'/%3E%3C/svg%3E");
-    background-size: 48px 48px;
-  }
-
-  .nav-right-group {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-  }
-
-  .nav-logo {
-    font-family: 'Orbitron', monospace;
-    font-size: 18px;
-    font-weight: 900;
-    color: #1A3FFF;
-    letter-spacing: 4px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .nav-logo .dot-sep { color: #FF1A1A; }
-
-  .nav-logo .blink {
-    width: 8px; height: 8px;
-    background: var(--phosphor);
-    display: inline-block;
-    animation: blink 1.2s step-end infinite;
-  }
-
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-  .nav-links {
-    display: flex;
-    gap: 2rem;
-    list-style: none;
-  }
-
-  .nav-links a {
-    color: #C0C4D0;
-    text-decoration: none;
-    font-size: 12px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    transition: color 0.2s;
-  }
-
-  .nav-links a:hover { color: #ffffff; }
-
-  .nav-status {
-    font-size: 11px;
-    color: #C0C4D0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .status-dot {
-    width: 6px; height: 6px;
-    background: var(--radar-green);
-    border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 0 6px var(--radar-green);
-  }
-
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-  /* ================== HERO ================== */
-  #hero {
-    min-height: 100vh;
-    padding-top: 56px;
-    position: relative;
-    overflow: hidden;
-    display: grid;
-    grid-template-columns: 1fr 3fr 1fr;
-    grid-template-rows: 1fr;
-    gap: 0;
-  }
-
-  /* Corner brackets */
-  #hero::before {
-    content: '';
-    position: absolute;
-    top: 80px; left: 24px;
-    width: 40px; height: 40px;
-    border-top: 2px solid var(--phosphor);
-    border-left: 2px solid var(--phosphor);
-  }
-
-  #hero::after {
-    content: '';
-    position: absolute;
-    bottom: 24px; right: 24px;
-    width: 40px; height: 40px;
-    border-bottom: 2px solid var(--phosphor);
-    border-right: 2px solid var(--phosphor);
-    z-index: 1;
-  }
-
-  /* Animated scanning line */
-  .scan-line {
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent 0%, #1A3FFF 40%, #FF1A1A 60%, transparent 100%);
-    opacity: 0.5;
-    animation: scanDown 4s linear infinite;
-    pointer-events: none;
-  }
-
-  @keyframes scanDown {
-    0% { top: 56px; opacity: 0; }
-    5% { opacity: 0.4; }
-    95% { opacity: 0.4; }
-    100% { top: 100vh; opacity: 0; }
-  }
-
-  .hero-side-panel {
-    padding: 2rem 1rem;
-    border-right: var(--border-phosphor);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1.5rem;
-    font-size: 11px;
-    color: #C0C4D0;
-    overflow: hidden;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='12' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.8' opacity='0.18'/%3E%3Ccircle cx='36' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.8' opacity='0.18'/%3E%3Ccircle cx='24' cy='12' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.8' opacity='0.18'/%3E%3Ccircle cx='24' cy='36' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.8' opacity='0.18'/%3E%3Crect x='19' y='19' width='10' height='10' fill='none' stroke='%231A3FFF' stroke-width='0.5' opacity='0.1'/%3E%3C/svg%3E");
-    background-size: 48px 48px;
-  }
-
-  .hero-side-panel.right {
-    border-right: none;
-    border-left: var(--border-phosphor);
-  }
-
-  .data-block {
-    border: var(--border-phosphor);
-    padding: 0.75rem;
-    background: var(--bg-panel);
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.08'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.08'/%3E%3C/svg%3E");
-    background-size: 4px 4px;
-    position: relative;
-  }
-  .data-block::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(to right, #FF1A1A40, transparent);
-  }
-
-  .data-block .label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: #C0C4D0;
-    margin-bottom: 4px;
-  }
-
-  .data-block .value {
-    font-family: 'VT323', monospace;
-    font-size: 22px;
-    color: var(--phosphor);
-  }
-
-  .data-block .value.amber { color: var(--data-amber); }
-  .data-block .value.cyan { color: var(--accent-blue,#1A3FFF); }
-
-  .scrolling-text {
-    overflow: hidden;
-    height: 80px;
-    mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
-  }
-
-  .scrolling-inner {
-    animation: scrollUp 12s linear infinite;
-    font-size: 10px;
-    line-height: 1.8;
-    color: #C0C4D0;
-  }
-
-  @keyframes scrollUp {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(-50%); }
-  }
-
-  .hero-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 2rem;
-    position: relative;
-    grid-bg: var(--bg);
-  }
-
-  .hero-eyebrow {
-    font-size: 11px;
-    letter-spacing: 4px;
-    color: #FF1A1A;
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-  }
-
-  .hero-title {
-    font-family: 'Orbitron', monospace;
-    font-weight: 900;
-    font-size: clamp(2.5rem, 6vw, 5rem);
-    color: var(--phosphor);
-    text-align: center;
-    letter-spacing: 4px;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 0 40px #1A3FFF40, 0 0 80px #FF1A1A20;
-  }
-
-  .hero-subtitle {
-    font-family: 'VT323', monospace;
-    font-size: clamp(1.2rem, 3vw, 2rem);
-    color: var(--accent-red,#FF1A1A);
-    text-align: center;
-    letter-spacing: 6px;
-    margin-bottom: 2.5rem;
-  }
-
-  .hero-desc {
-    max-width: 420px;
-    text-align: center;
-    color: #C0C4D0;
-    font-size: 13px;
-    line-height: 1.8;
-    margin-bottom: 2rem;
-  }
-
-  .hero-cta-row {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .btn-primary {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    background: #FF1A1A;
-    color: #000;
-    border: 2px solid #FF1A1A;
-    padding: 12px 28px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.15s;
-    box-shadow: 3px 3px 0 #1A3FFF;
-  }
-
-  .btn-primary:hover {
-    background: #FF4444;
-    box-shadow: 5px 5px 0 #1A3FFF;
-    transform: translate(-1px, -1px);
-  }
-
-  .btn-secondary {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    background: transparent;
-    color: #1A3FFF;
-    border: 2px solid #1A3FFF;
-    padding: 12px 28px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.15s;
-    box-shadow: 3px 3px 0 #FF1A1A30;
-  }
-
-  .btn-secondary:hover {
-    background: #1A3FFF15;
-    box-shadow: 5px 5px 0 #FF1A1A50;
-    transform: translate(-1px, -1px);
-  }
-
-  /* Wavelength bar (like image 1) */
-  .wavelength-bar {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 48px;
-    background: #000;
-    border-top: var(--border-phosphor);
-    display: flex;
-    align-items: center;
-    padding: 0 2rem;
-    gap: 0;
-    font-size: 10px;
-    color: #C0C4D0;
-    overflow: hidden;
-  }
-
-  .wavelength-labels {
-    display: flex;
-    gap: 0;
-    align-items: flex-start;
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .wavelength-tick-row {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    font-size: 9px;
-    color: #C0C4D0;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-
-  .wavelength-gradient {
-    width: 100%;
-    height: 8px;
-    background: linear-gradient(to right,
-      #000000 0%,
-      #000080 10%,
-      #0000FF 20%,
-      #00FFFF 35%,
-      #00FF00 50%,
-      #FFFF00 65%,
-      #FF8000 78%,
-      #FF0000 90%,
-      #FFFFFF 100%
-    );
-    opacity: 0.75;
-  }
-
-  /* ================== DEMO SECTION ================== */
-  #demo {
-    padding: 5rem 2rem;
-    background: var(--bg-deep);
-    position: relative;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.05'/%3E%3Crect x='4' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.03'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.04'/%3E%3Crect x='6' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.02'/%3E%3Crect x='1' y='4' width='1' height='1' fill='%231A3FFF' opacity='0.03'/%3E%3Crect x='5' y='4' width='1' height='1' fill='%231A3FFF' opacity='0.05'/%3E%3Crect x='3' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.03'/%3E%3Crect x='7' y='6' width='1' height='1' fill='%23FF1A1A' opacity='0.02'/%3E%3C/svg%3E");
-    background-size: 8px 8px;
-  }
-
-  .section-header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-
-  .section-tag {
-    font-size: 10px;
-    letter-spacing: 4px;
-    color: #FF1A1A;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
-  .section-title {
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(1.5rem, 3vw, 2.5rem);
-    font-weight: 700;
-    color: #1A3FFF;
-    letter-spacing: 3px;
-  }
-
-  .demo-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 2px;
-  }
-
-  .camera-viewport {
-    position: relative;
-    background: #000;
-    border: 2px solid #1A3FFF50;
-    box-shadow: 4px 4px 0 #FF1A1A30;
-    aspect-ratio: 4/3;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Crosshair centre square — offset upward by half the status bar height so it sits in the visual centre */
-  .camera-viewport::before {
-    content: '';
-    position: absolute;
-    top: calc(50% - 16px); left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80px; height: 80px;
-    border: 1px solid var(--phosphor);
-    opacity: 0.5;
-    z-index: 10;
-    pointer-events: none;
-  }
-
-  .crosshair-h, .crosshair-v {
-    position: absolute;
-    background: var(--phosphor);
-    opacity: 0.3;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  .crosshair-h {
-    height: 1px;
-    width: 100%;
-    top: calc(50% - 16px);
-  }
-
-  .crosshair-v {
-    width: 1px;
-    height: 100%;
-    left: 50%;
-  }
-
-  .corner-tl, .corner-tr, .corner-bl, .corner-br {
-    position: absolute;
-    width: 20px; height: 20px;
-    pointer-events: none;
-    z-index: 11;
-    opacity: 0.8;
-  }
-
-  .corner-tl { top: 12px; left: 12px; border-top: 2px solid var(--accent-red,#FF1A1A); border-left: 2px solid var(--accent-red,#FF1A1A); }
-  .corner-tr { top: 12px; right: 12px; border-top: 2px solid var(--accent-red,#FF1A1A); border-right: 2px solid var(--accent-red,#FF1A1A); }
-  .corner-bl { bottom: 44px; left: 12px; border-bottom: 2px solid var(--accent-red,#FF1A1A); border-left: 2px solid var(--accent-red,#FF1A1A); }
-  .corner-br { bottom: 44px; right: 12px; border-bottom: 2px solid var(--accent-red,#FF1A1A); border-right: 2px solid var(--accent-red,#FF1A1A); }
-
-  /* Reticle — drifts around the adjusted visual centre */
-  .reticle {
-    position: absolute;
-    width: 60px; height: 60px;
-    pointer-events: none;
-    z-index: 12;
-    animation: reticleMove 5s ease-in-out infinite;
-  }
-
-  @keyframes reticleMove {
-    0%,100% { top: calc(35% - 16px); left: 38%; }
-    33%     { top: calc(45% - 16px); left: 42%; }
-    66%     { top: calc(30% - 16px); left: 44%; }
-  }
-
-  .reticle::before, .reticle::after {
-    content: '';
-    position: absolute;
-  }
-
-  .reticle::before {
-    top: 50%; left: 0;
-    width: 100%; height: 1px;
-    background: var(--phosphor);
-    opacity: 0.6;
-  }
-
-  .reticle::after {
-    left: 50%; top: 0;
-    width: 1px; height: 100%;
-    background: var(--phosphor);
-    opacity: 0.6;
-  }
-
-  #videoElement {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-  }
-
-  #canvasOverlay {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-  }
-
-  .camera-status-bar {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.85);
-    border-top: 1px solid #1A3FFF30;
-    padding: 6px 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 10px;
-    letter-spacing: 1px;
-    color: #C8CDD8;
-    z-index: 20;
-  }
-
-  .cam-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .cam-rec {
-    width: 8px; height: 8px;
-    background: var(--thermal-red);
-    border-radius: 50%;
-    animation: blink 0.8s step-end infinite;
-    box-shadow: 0 0 8px var(--thermal-red);
-  }
-
-  .camera-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    color: #9A9FAF;
-    cursor: pointer;
-    position: absolute;
-    inset: 0;
-    bottom: 32px; /* offset for status bar so icon aligns with the crosshair centre */
-    z-index: 5;
-    background: #06000F;
-    transition: background 0.3s;
-  }
-
-  .camera-placeholder:hover { background: #0A000F; }
-
-  /* Thermal effect info overlay */
-  .thermal-badge {
-    position: absolute;
-    top: 12px; left: 12px;
-    background: rgba(0,0,0,0.8);
-    border: 1px solid var(--accent-red,#FF1A1A);
-    padding: 4px 8px;
-    font-size: 10px;
-    color: var(--accent-red,#FF1A1A);
-    letter-spacing: 2px;
-    z-index: 20;
-  }
-
-  /* RIGHT PANEL */
-  .demo-sidebar {
-    background: var(--bg-panel);
-    border: 1px solid #1A3FFF20;
-    border-left: none;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='12' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.08'/%3E%3Ccircle cx='36' cy='24' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.08'/%3E%3Ccircle cx='24' cy='12' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.08'/%3E%3Ccircle cx='24' cy='36' r='10' fill='none' stroke='%231A3FFF' stroke-width='0.7' opacity='0.08'/%3E%3C/svg%3E");
-    background-size: 48px 48px;
-  }
-
-  .sidebar-section {
-    padding: 1rem;
-    border-bottom: 1px solid #1A3FFF15;
-  }
-
-  .sidebar-label {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: #C0C4D0;
-    text-transform: uppercase;
-    margin-bottom: 0.75rem;
-  }
-
-  /* Sign detection display */
-  .detection-display {
-    font-family: 'VT323', monospace;
-    font-size: 4rem;
-    color: var(--phosphor);
-    text-align: center;
-    padding: 1.5rem 0;
-    letter-spacing: 8px;
-    min-height: 100px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid #1A3FFF40;
-    background: #000;
-    text-shadow: 0 0 20px #1A3FFF80;
-    box-shadow: 4px 4px 0 #FF1A1A30;
-    animation: textFlicker 8s linear infinite;
-  }
-
-  @keyframes textFlicker {
-    0%,100%{opacity:1}
-    92%{opacity:1}
-    93%{opacity:0.8}
-    94%{opacity:1}
-    97%{opacity:0.9}
-    98%{opacity:1}
-  }
-
-  .confidence-bar-wrap {
-    margin-top: 0.75rem;
-  }
-
-  .conf-label {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    margin-bottom: 4px;
-    color: #C0C4D0;
-  }
-
-  .conf-bar {
-    height: 4px;
-    background: #000A1A;
-    border: 1px solid #1A3FFF20;
-  }
-
-  .conf-fill {
-    height: 100%;
-    background: #1A3FFF;
-    transition: width 0.6s ease;
-    box-shadow: 0 0 8px #1A3FFF80;
-  }
-
-  /* Recent signs log */
-  .sign-log {
-    font-size: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: 120px;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-
-  .sign-log::-webkit-scrollbar { display: none; }
-
-  .log-entry {
-    display: flex;
-    justify-content: space-between;
-    padding: 3px 6px;
-    background: #06000F;
-    border-left: 2px solid #FF1A1A;
-    animation: fadeIn 0.3s ease;
-  }
-
-  @keyframes fadeIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:none} }
-
-  .log-entry .sign { color: #1A3FFF; font-weight: bold; }
-  .log-entry .conf { color: #C0C4D0; font-size: 10px; }
-
-  /* Radar minimap */
-  .radar-display {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 1;
-    max-width: 100px;
-    margin: 0 auto;
-  }
-
-  .radar-display canvas {
-    width: 100%;
-    height: 100%;
-  }
-
-  .start-btn {
-    width: 100%;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    background: transparent;
-    color: #1A3FFF;
-    border: 2px solid #1A3FFF;
-    padding: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-    margin-top: auto;
-    box-shadow: 3px 3px 0 #FF1A1A30;
-  }
-
-  .start-btn:hover {
-    background: #1A3FFF18;
-    box-shadow: 5px 5px 0 #FF1A1A50;
-    transform: translate(-1px,-1px);
-  }
-
-  .start-btn.active {
-    background: #FF1A1A;
-    color: #000;
-    font-weight: bold;
-    border-color: #FF1A1A;
-    box-shadow: 3px 3px 0 #1A3FFF;
-  }
-
-  /* ================== ABOUT ================== */
-  #about {
-    padding: 6rem 2rem;
-    background: var(--bg);
-    position: relative;
-  }
-
-  .about-grid {
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-    align-items: center;
-  }
-
-  .about-text h2 {
-    font-family: 'Orbitron', monospace;
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--phosphor);
-    letter-spacing: 3px;
-    margin-bottom: 1.5rem;
-    line-height: 1.2;
-  }
-
-  .about-text p {
-    color: #C8CDD8;
-    line-height: 1.9;
-    margin-bottom: 1rem;
-    font-size: 13px;
-  }
-
-  .about-text p strong { color: #ffffff; }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-  }
-
-  .stat-card {
-    background: var(--bg-panel);
-    border: 2px solid #1A3FFF20;
-    padding: 1.5rem 1rem;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 3px 3px 0 #FF1A1A18;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.07'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.07'/%3E%3C/svg%3E");
-    background-size: 4px 4px;
-  }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(to right, transparent, #1A3FFF, #FF1A1A, transparent);
-    opacity: 0.6;
-  }
-
-  .stat-num {
-    font-family: 'VT323', monospace;
-    font-size: 3rem;
-    color: var(--phosphor);
-    line-height: 1;
-    display: block;
-    text-shadow: 0 0 20px #1A3FFF40;
-  }
-
-  .stat-num.orange { color: #FF1A1A; text-shadow: 0 0 20px #FF1A1A40; }
-  .stat-num.cyan   { color: #1A3FFF; text-shadow: 0 0 20px #1A3FFF40; }
-
-  .stat-label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: #C0C4D0;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-
-  /* ================== HOW IT WORKS ================== */
-  #how {
-    padding: 6rem 2rem;
-    background: var(--bg-deep);
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* The layered wireframe like image 4 */
-  .layers-viz {
-    max-width: 900px;
-    margin: 3rem auto 0;
-    position: relative;
-    perspective: 800px;
-  }
-
-  .layer-stack {
-    position: relative;
-    transform: rotateX(10deg);
-    transform-style: preserve-3d;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .layer {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    border: 1px solid #1A3FFF15;
-    border-bottom: none;
-    background: var(--bg-panel);
-    transition: all 0.3s;
-    cursor: default;
-  }
-
-  .layer:last-child { border-bottom: 1px solid #1A3FFF15; }
-
-  .layer:hover {
-    background: #1A3FFF08;
-    border-color: #1A3FFF40;
-  }
-
-  .layer-num {
-    font-family: 'VT323', monospace;
-    font-size: 2.5rem;
-    color: #1A3FFF30;
-    padding: 1.5rem;
-    border-right: 1px solid #1A3FFF15;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 60px;
-  }
-
-  .layer-content {
-    padding: 1.5rem;
-  }
-
-  .layer-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--phosphor);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-  }
-
-  .layer-desc {
-    font-size: 12px;
-    color: #C0C4D0;
-    line-height: 1.7;
-  }
-
-  .layer-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    font-size: 10px;
-    letter-spacing: 2px;
-    margin-top: 6px;
-  }
-
-  .badge-green { border: 1px solid var(--phosphor); color: var(--phosphor); }
-  .badge-orange { border: 1px solid var(--accent-red,#FF1A1A); color: var(--accent-red,#FF1A1A); }
-  .badge-cyan { border: 1px solid var(--accent-blue,#1A3FFF); color: var(--accent-blue,#1A3FFF); }
-
-  /* Horizontal rule dividers */
-  .section-divider {
-    max-width: 1100px;
-    margin: 0 auto;
-    border: none;
-    border-top: 1px solid #1A3FFF15;
-    position: relative;
-  }
-
-  .section-divider::after {
-    content: '//';
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg);
-    padding: 0 1rem;
-    color: #C0C4D0;
-    font-size: 12px;
-  }
-
-  /* ================== SIGNS REFERENCE ================== */
-  #signs {
-    padding: 6rem 2rem;
-    background: var(--bg);
-  }
-
-  .signs-grid {
-    max-width: 1100px;
-    margin: 3rem auto 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 2px;
-  }
-
-  .sign-card {
-    background: var(--bg-panel);
-    border: 1px solid #1A3FFF15;
-    aspect-ratio: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.2s;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sign-card:hover {
-    border-color: var(--phosphor);
-    background: #1A3FFF08;
-  }
-
-  .sign-card:hover .sign-glyph { color: var(--phosphor); }
-
-  .sign-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 1px;
-    background: linear-gradient(to right, transparent, var(--phosphor), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
-  .sign-card:hover::before { opacity: 0.6; }
-
-  .sign-glyph {
-    font-family: 'VT323', monospace;
-    font-size: 2.5rem;
-    color: #C0C4D0;
-    line-height: 1;
-    transition: color 0.2s;
-  }
-
-  .sign-label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: #C0C4D0;
-    text-transform: uppercase;
-  }
-
-  /* ================== FOOTER ================== */
-  footer {
-    background: var(--bg-panel);
-    border-top: 1px solid #1A3FFF30;
-    padding: 3rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.07'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23FF1A1A' opacity='0.04'/%3E%3C/svg%3E");
-    background-size: 4px 4px;
-  }
-
-  .footer-left {
-    font-family: 'Orbitron', monospace;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--phosphor);
-    letter-spacing: 3px;
-  }
-
-  .footer-meta {
-    font-size: 11px;
-    color: #C0C4D0;
-    letter-spacing: 1px;
-  }
-
-  footer a { color: #C0C4D0; text-decoration: none; }
-  footer a:hover { color: var(--phosphor); }
-
-  /* ================== UTILITIES ================== */
-  .text-center { text-align: center; }
-
-  .mb-1 { margin-bottom: 0.5rem; }
-  .mb-2 { margin-bottom: 1rem; }
-
-  /* Glitch — blue/red split matching pixel references */
-  @keyframes glitch {
-    0%,90%,100%{clip-path:none;transform:none}
-    91%{clip-path:inset(20% 0 50% 0);transform:translateX(-3px);color:#1A3FFF}
-    93%{clip-path:inset(60% 0 10% 0);transform:translateX(3px);color:#FF1A1A}
-    95%{clip-path:inset(30% 0 40% 0);transform:translateX(-2px)}
-  }
-
-  .glitch { position: relative; }
-
-  .glitch::before {
-    content: attr(data-text);
-    position: absolute; top: 0; left: 0;
-    color: #1A3FFF;
-    clip-path: inset(0);
-    animation: glitch 6s infinite;
-    opacity: 0.5;
-    mix-blend-mode: screen;
-  }
-
-  .glitch::after {
-    content: attr(data-text);
-    position: absolute; top: 0; left: 0;
-    color: #FF1A1A;
-    clip-path: inset(0);
-    animation: glitch 6s infinite 0.08s;
-    opacity: 0.5;
-    mix-blend-mode: screen;
-  }
-
-  /* ================== SUBMIT OVERLAY ================== */
-  #submitOverlay {
-    position: fixed;
-    inset: 0;
-    z-index: 500;
-    background: rgba(4,2,6,0.0);
-    pointer-events: none;
-    transition: background 0.35s ease;
-  }
-  #submitOverlay.open {
-    background: rgba(4,2,6,0.85);
-    pointer-events: all;
-  }
-
-  #submitPanel {
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    width: min(760px, 100vw);
-    background: var(--bg);
-    border-left: 1px solid #1A3FFF30;
-    transform: translateX(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 501;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect x='0' y='0' width='1' height='1' fill='%231A3FFF' opacity='0.06'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%231A3FFF' opacity='0.06'/%3E%3C/svg%3E");
-    background-size: 4px 4px;
-  }
-  #submitPanel.open { transform: translateX(0); }
-
-  .sp-header {
-    flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 2rem;
-    height: 56px;
-    background: var(--bg-panel);
-    border-bottom: 1px solid #1A3FFF20;
-  }
-
-  .sp-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 13px; font-weight: 700;
-    letter-spacing: 4px; color: var(--phosphor);
-    display: flex; align-items: center; gap: 10px;
-  }
-  .sp-title .sp-tag {
-    font-size: 9px; letter-spacing: 3px; color: var(--accent-red,#FF1A1A);
-    border: 1px solid var(--accent-red,#FF1A1A);
-    padding: 2px 8px;
-  }
-
-  .sp-close {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; letter-spacing: 2px;
-    background: transparent; color: #C0C4D0;
-    border: 1px solid #1A3FFF30;
-    padding: 6px 14px; cursor: pointer;
-    transition: all 0.15s;
-  }
-  .sp-close:hover { color: var(--thermal-red); border-color: var(--thermal-red); }
-
-  .sp-body {
-    flex: 1;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #1A3FFF30 transparent;
-    padding: 1.5rem 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .sp-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-  }
-
-  .submit-cam-wrap {
-    position: relative;
-    background: #000;
-    border: 1px solid #1A3FFF20;
-    aspect-ratio: 4/3;
-    overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  #submitVideo { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none;z-index:2; }
-  #submitCanvas { position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none; }
-
-  .submit-cam-idle {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 1rem; width: 100%; height: 100%;
-    background: var(--bg-panel); cursor: pointer;
-    transition: background 0.2s;
-  }
-  .submit-cam-idle:hover { background: #1A0010; }
-
-  .submit-bracket-tl { position:absolute;top:12px;left:12px;width:24px;height:24px;border-top:2px solid var(--accent-red,#FF1A1A);border-left:2px solid var(--accent-red,#FF1A1A);z-index:10; }
-  .submit-bracket-tr { position:absolute;top:12px;right:12px;width:24px;height:24px;border-top:2px solid var(--accent-red,#FF1A1A);border-right:2px solid var(--accent-red,#FF1A1A);z-index:10; }
-  .submit-bracket-bl { position:absolute;bottom:12px;left:12px;width:24px;height:24px;border-bottom:2px solid var(--accent-red,#FF1A1A);border-left:2px solid var(--accent-red,#FF1A1A);z-index:10; }
-  .submit-bracket-br { position:absolute;bottom:12px;right:12px;width:24px;height:24px;border-bottom:2px solid var(--accent-red,#FF1A1A);border-right:2px solid var(--accent-red,#FF1A1A);z-index:10; }
-
-  .rec-ring-wrap {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100px; height: 100px;
-    z-index: 15; pointer-events: none;
-    display: none;
-  }
-  .rec-ring-wrap.active { display: block; }
-  .rec-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-  .rec-ring-bg  { fill: none; stroke: #000A1A; stroke-width: 4; }
-  .rec-ring-bar { fill: none; stroke: var(--thermal-red); stroke-width: 4; stroke-linecap: butt;
-                  stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset 0.1s linear; }
-
-  .rec-label {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    font-size: 10px; letter-spacing: 3px; color: var(--thermal-red);
-    z-index: 15; white-space: nowrap; display: none;
-  }
-  .rec-label.active { display: block; animation: blink 0.6s step-end infinite; }
-
-  .frame-counter-badge {
-    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-    font-family: 'VT323', monospace; font-size: 2rem;
-    color: var(--accent-red,#FF1A1A); z-index: 15;
-    display: none; letter-spacing: 4px;
-  }
-  .frame-counter-badge.active { display: block; }
-
-  .submit-cam-strip {
-    position: absolute; bottom: 0; left: 0; right: 0; z-index: 20;
-    background: rgba(6,4,8,0.9); border-top: 1px solid #1A3FFF20;
-    padding: 6px 12px;
-    display: flex; justify-content: space-between;
-    font-size: 10px; letter-spacing: 2px; color: #C0C4D0;
-  }
-
-  .submit-form-panel {
-    background: var(--bg-panel);
-    border: 1px solid #1A3FFF20;
-    border-left: none;
-    padding: 1.5rem;
-    display: flex; flex-direction: column; gap: 1.25rem;
-    overflow-y: auto;
-  }
-
-  .form-row { display: flex; flex-direction: column; gap: 6px; }
-  .form-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #C0C4D0; }
-
-  .form-input {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13px; letter-spacing: 1px;
-    background: #000; color: var(--phosphor);
-    border: 1px solid #1A3FFF30; padding: 9px 12px;
-    outline: none; width: 100%; transition: border-color 0.2s;
-    caret-color: var(--thermal-red);
-  }
-  .form-input:focus { border-color: var(--thermal-red); }
-  .form-input::placeholder { color: #C0C4D0; }
-
-  .form-select {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 12px; letter-spacing: 1px;
-    background: #000; color: var(--phosphor);
-    border: 1px solid #1A3FFF30; padding: 9px 12px;
-    width: 100%; outline: none; transition: border-color 0.2s; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23CC1A1A'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center;
-  }
-  .form-select:focus { border-color: var(--thermal-red); }
-
-  .form-textarea {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; line-height: 1.7;
-    background: #000; color: var(--phosphor);
-    border: 1px solid #1A3FFF30; padding: 9px 12px;
-    width: 100%; outline: none; resize: vertical; min-height: 64px;
-    transition: border-color 0.2s; caret-color: var(--thermal-red);
-  }
-  .form-textarea:focus { border-color: var(--thermal-red); }
-
-  .record-controls { display: flex; gap: 2px; }
-
-  .btn-record {
-    flex: 1; font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
-    background: transparent; color: var(--thermal-red);
-    border: 1px solid var(--thermal-red); padding: 10px 8px; cursor: pointer; transition: all 0.15s;
-  }
-  .btn-record:hover { background: rgba(255,26,26,0.1); }
-  .btn-record:disabled { opacity: 0.3; cursor: not-allowed; }
-  .btn-record.recording { background: var(--thermal-red); color: #000; animation: pulse 0.8s ease-in-out infinite; }
-
-  .btn-preview {
-    flex: 1; font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
-    background: transparent; color: var(--data-amber);
-    border: 1px solid var(--data-amber); padding: 10px 8px; cursor: pointer; transition: all 0.15s;
-  }
-  .btn-preview:hover { background: rgba(255,102,0,0.1); }
-  .btn-preview:disabled { opacity: 0.3; cursor: not-allowed; }
-
-  .capture-status {
-    background: #000; border: 1px solid #1A3FFF20;
-    padding: 8px 12px; display: flex; align-items: center; gap: 10px;
-    font-size: 10px; color: #C0C4D0;
-  }
-  .capture-dot { width: 8px; height: 8px; border-radius: 50%; background: #C0C4D0; flex-shrink: 0; }
-  .capture-dot.has-data { background: var(--phosphor); box-shadow: 0 0 8px var(--phosphor); }
-
-  .btn-submit-sign {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
-    background: var(--thermal-red); color: var(--white);
-    border: none; padding: 12px; cursor: pointer; width: 100%; transition: all 0.15s;
-  }
-  .btn-submit-sign:hover { background: #FF1A1A; }
-  .btn-submit-sign:disabled { opacity: 0.3; cursor: not-allowed; background: #C0C4D0; }
-
-  /* Queue inside panel */
-  .sp-queue-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #1A3FFF15;
-    font-size: 10px; letter-spacing: 3px; color: #C0C4D0;
-    text-transform: uppercase;
-  }
-  .queue-count { color: var(--accent-red,#FF1A1A); }
-
-  .queue-list {
-    display: flex; flex-direction: column; gap: 2px;
-    max-height: 220px; overflow-y: auto;
-    scrollbar-width: thin; scrollbar-color: #1A3FFF30 transparent;
-  }
-
-  .queue-item {
-    display: grid; grid-template-columns: 1fr auto auto auto;
-    align-items: center; gap: 1rem;
-    background: #000; border: 1px solid #1A3FFF15;
-    padding: 8px 12px; font-size: 11px;
-    animation: fadeIn 0.3s ease; transition: border-color 0.2s;
-  }
-  .queue-item:hover { border-color: #1A3FFF40; }
-  .qi-name { color: var(--phosphor); font-weight: bold; letter-spacing: 1px; }
-  .qi-cat  { color: #C0C4D0; font-size: 10px; }
-  .qi-frames { color: var(--accent-blue,#1A3FFF); font-size: 10px; letter-spacing: 1px; }
-  .qi-status { font-size: 9px; letter-spacing: 2px; padding: 2px 6px; border: 1px solid; }
-  .qi-status.pending  { border-color: var(--data-amber); color: var(--data-amber); }
-  .qi-status.reviewed { border-color: var(--phosphor);   color: var(--phosphor); }
-  .qi-actions { display: flex; gap: 4px; }
-  .qi-btn {
-    font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1px;
-    background: transparent; border: 1px solid #1A3FFF30;
-    color: #C0C4D0; padding: 3px 8px; cursor: pointer; transition: all 0.15s;
-  }
-  .qi-btn:hover { border-color: var(--thermal-red); color: var(--thermal-red); }
-  .qi-btn.dl { border-color: #1A3FFF30; color: var(--accent-blue,#1A3FFF); }
-  .qi-btn.dl:hover { border-color: var(--accent-blue,#1A3FFF); }
-
-  .sp-queue-actions { display: flex; gap: 2px; padding-top: 0.75rem; }
-
-  /* Toast */
-  .toast {
-    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--bg-panel); border: 1px solid #1A3FFF60;
-    padding: 12px 24px; font-size: 11px; letter-spacing: 2px;
-    color: var(--phosphor); z-index: 9000;
-    opacity: 0; transition: all 0.3s ease; pointer-events: none; white-space: nowrap;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #hero { grid-template-columns: 1fr; }
-    .hero-side-panel { display: none; }
-    .demo-container { grid-template-columns: 1fr; }
-    .demo-sidebar { border-left: 1px solid #1A3FFF20; }
-    .about-grid { grid-template-columns: 1fr; gap: 2rem; }
-    nav .nav-links { display: none; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MIZO — Irish Sign Language Recognition</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-<!-- NAV -->
+<!-- ==================== NAVIGATION ==================== -->
 <nav>
   <a href="#" class="nav-logo">
     <span class="blink"></span>
@@ -1461,7 +19,7 @@
     <ul class="nav-links">
       <li><a href="#demo">DEMO</a></li>
       <li><a href="#about">ABOUT</a></li>
-      <li><a href="#" onclick="openSubmitPanel();return false;" style="color:var(--accent-red,#FF1A1A);">SUBMIT SIGN ↗</a></li>
+      <li><a href="#" onclick="openSubmitPanel(); return false;" style="color:var(--accent-red,#FF1A1A);">SUBMIT SIGN ↗</a></li>
     </ul>
     <div class="nav-status">
       <div class="status-dot"></div>
@@ -1470,11 +28,11 @@
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- ==================== HERO ==================== -->
 <section id="hero" class="grid-bg ornament-bg dither-hero">
   <div class="scan-line"></div>
 
-  <!-- LEFT DATA PANEL -->
+  <!-- Left data panel -->
   <div class="hero-side-panel dot-grid">
     <div class="data-block">
       <div class="label">// RECOGNITION MODE</div>
@@ -1508,22 +66,23 @@
     </div>
   </div>
 
-  <!-- HERO CENTER -->
+  <!-- Centre content -->
   <div class="hero-center">
     <div class="hero-eyebrow">// RECOGNITION SYSTEM v2.1.0</div>
     <h1 class="hero-title glitch" data-text="MIZO">MIZO</h1>
-    <p class="hero-subtitle" style="color:#FF1A1A;letter-spacing:8px;">IRISH SIGN LANGUAGE · AI</p>
+    <p class="hero-subtitle" style="color:#FF1A1A; letter-spacing:8px;">IRISH SIGN LANGUAGE · AI</p>
     <p class="hero-desc">
-      Real-time recognition of Irish Sign Language gestures powered by a custom-trained neural model. Currently recognising <strong>4 words</strong> — expanding over time.
+      Real-time recognition of Irish Sign Language gestures powered by a custom-trained neural model.
+      Currently recognising <strong>4 words</strong> — expanding over time.
       Point your camera, begin signing — the system reads you.
     </p>
     <div class="hero-cta-row">
       <a href="#demo" class="btn-primary">INITIALISE DEMO</a>
-      <a href="#how" class="btn-secondary">ARCHITECTURE</a>
+      <a href="#about" class="btn-secondary">ARCHITECTURE</a>
     </div>
   </div>
 
-  <!-- RIGHT DATA PANEL -->
+  <!-- Right data panel -->
   <div class="hero-side-panel right dot-grid">
     <div class="data-block">
       <div class="label">// LATENCY</div>
@@ -1555,11 +114,12 @@
     </div>
   </div>
 
-  <!-- Wavelength bar bottom -->
-  <div class="wavelength-bar" style="grid-column: 1/-1;">
+  <!-- Wavelength bar -->
+  <div class="wavelength-bar" style="grid-column: 1 / -1;">
     <div class="wavelength-labels">
       <div class="wavelength-tick-row">
-        <span>380nm</span><span>420nm</span><span>450nm</span><span>490nm</span><span>530nm</span><span>580nm</span><span>620nm</span><span>680nm+</span>
+        <span>380nm</span><span>420nm</span><span>450nm</span><span>490nm</span>
+        <span>530nm</span><span>580nm</span><span>620nm</span><span>680nm+</span>
       </div>
       <div class="wavelength-gradient"></div>
     </div>
@@ -1568,7 +128,7 @@
 
 <div class="dither-strip"></div>
 
-<!-- DEMO SECTION -->
+<!-- ==================== DEMO ==================== -->
 <section id="demo">
   <div class="section-header">
     <div class="section-tag">// SYSTEM INTERFACE</div>
@@ -1577,11 +137,10 @@
 
   <div class="demo-container">
 
-    <!-- CAMERA VIEWPORT -->
+    <!-- Camera viewport -->
     <div class="camera-viewport">
       <div class="thermal-badge">THERMAL-IR // HAND SCAN</div>
 
-      <!-- Structural overlays -->
       <div class="crosshair-h"></div>
       <div class="crosshair-v"></div>
       <div class="corner-tl"></div>
@@ -1590,19 +149,17 @@
       <div class="corner-br"></div>
       <div class="reticle"></div>
 
-      <!-- Video + canvas -->
       <video id="videoElement" autoplay playsinline muted style="display:none;"></video>
       <canvas id="canvasOverlay"></canvas>
 
-      <!-- Placeholder shown before camera starts -->
       <div class="camera-placeholder" id="cameraPlaceholder" onclick="startCamera()">
-        <span style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#ffffff;">CLICK TO ACTIVATE CAMERA</span>
-        <span style="font-size:10px;color:#9A9FAF;">Grant camera access when prompted</span>
+        <span style="font-size:12px; letter-spacing:2px; text-transform:uppercase; color:#ffffff;">CLICK TO ACTIVATE CAMERA</span>
+        <span style="font-size:10px; color:#9A9FAF;">Grant camera access when prompted</span>
       </div>
 
       <div class="camera-status-bar">
         <div class="cam-indicator">
-          <div class="cam-rec" id="recDot" style="background:#C0C4D0;box-shadow:none;"></div>
+          <div class="cam-rec" id="recDot" style="background:#C0C4D0; box-shadow:none;"></div>
           <span id="camStatus">STANDBY</span>
         </div>
         <span id="frameCounter">FRAME: ----</span>
@@ -1610,7 +167,7 @@
       </div>
     </div>
 
-    <!-- SIDEBAR -->
+    <!-- Sidebar -->
     <div class="demo-sidebar">
 
       <div class="sidebar-section">
@@ -1618,7 +175,7 @@
         <div class="detection-display" id="detectionDisplay">
           <span id="detectedSign">—</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:6px;color:#C0C4D0;">
+        <div style="display:flex; justify-content:space-between; font-size:10px; margin-top:6px; color:#C0C4D0;">
           <span id="stableIndicator" style="letter-spacing:2px;">○ READING</span>
           <span>THRESHOLD: 50%</span>
         </div>
@@ -1637,29 +194,36 @@
             <span id="bufferVal">0/60</span>
           </div>
           <div class="conf-bar">
-            <div class="conf-fill" id="bufferFill" style="width:0%;background:var(--accent-blue,#1A3FFF);box-shadow:0 0 8px var(--accent-blue,#1A3FFF);"></div>
+            <div class="conf-fill" id="bufferFill"
+              style="width:0%; background:var(--accent-blue,#1A3FFF); box-shadow:0 0 8px var(--accent-blue,#1A3FFF);"></div>
           </div>
         </div>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-label">// SENTENCE BUFFER</div>
-        <div id="sentenceDisplay" style="font-family:'VT323',monospace;font-size:1.4rem;color:var(--phosphor);letter-spacing:4px;padding:8px 0;min-height:36px;text-shadow:0 0 12px #1A3FFF60;">—</div>
+        <div id="sentenceDisplay"
+          style="font-family:'VT323',monospace; font-size:1.4rem; color:var(--phosphor); letter-spacing:4px;
+                 padding:8px 0; min-height:36px; text-shadow:0 0 12px #1A3FFF60;">—</div>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-label">// HAND DETECTED</div>
-        <div style="display:flex;gap:1rem;align-items:center;">
+        <div style="display:flex; gap:1rem; align-items:center;">
           <div style="flex:1;">
-            <div style="font-size:10px;color:#C0C4D0;margin-bottom:4px;">LEFT</div>
-            <div style="height:4px;background:#000A1A;border:1px solid #1A3FFF20;">
-              <div id="leftHandBar" style="height:100%;width:0%;background:var(--accent-blue,#1A3FFF);transition:width 0.4s;box-shadow:0 0 6px var(--accent-blue,#1A3FFF);"></div>
+            <div style="font-size:10px; color:#C0C4D0; margin-bottom:4px;">LEFT</div>
+            <div style="height:4px; background:#000A1A; border:1px solid #1A3FFF20;">
+              <div id="leftHandBar"
+                style="height:100%; width:0%; background:var(--accent-blue,#1A3FFF);
+                       transition:width 0.4s; box-shadow:0 0 6px var(--accent-blue,#1A3FFF);"></div>
             </div>
           </div>
           <div style="flex:1;">
-            <div style="font-size:10px;color:#C0C4D0;margin-bottom:4px;">RIGHT</div>
-            <div style="height:4px;background:#000A1A;border:1px solid #1A3FFF20;">
-              <div id="rightHandBar" style="height:100%;width:0%;background:var(--accent-red,#FF1A1A);transition:width 0.4s;box-shadow:0 0 6px var(--accent-red,#FF1A1A);"></div>
+            <div style="font-size:10px; color:#C0C4D0; margin-bottom:4px;">RIGHT</div>
+            <div style="height:4px; background:#000A1A; border:1px solid #1A3FFF20;">
+              <div id="rightHandBar"
+                style="height:100%; width:0%; background:var(--accent-red,#FF1A1A);
+                       transition:width 0.4s; box-shadow:0 0 6px var(--accent-red,#FF1A1A);"></div>
             </div>
           </div>
         </div>
@@ -1677,37 +241,46 @@
 
       <div class="sidebar-section" style="text-align:center;">
         <div class="sidebar-label">// SENSOR</div>
-        <canvas id="radarCanvas" width="100" height="100" style="display:block;margin:0 auto;"></canvas>
+        <canvas id="radarCanvas" width="100" height="100" style="display:block; margin:0 auto;"></canvas>
       </div>
 
-      <div style="padding:1rem;margin-top:auto;">
+      <div style="padding:1rem; margin-top:auto;">
         <button class="start-btn" id="startBtn" onclick="toggleCamera()">
           ▶ INITIALISE CAMERA
         </button>
-        <div style="margin-top:0.75rem;font-size:10px;color:#C0C4D0;text-align:center;line-height:1.6;">
-          Plug your ISL model into<br><code style="color:var(--phosphor);">processFrame()</code> below
+        <div style="margin-top:0.75rem; font-size:10px; color:#C0C4D0; text-align:center; line-height:1.6;">
+          Plug your ISL model into<br>
+          <code style="color:var(--phosphor);">processHolisticFrame()</code> in camera.js
         </div>
       </div>
 
-    </div>
-  </div>
+    </div><!-- /demo-sidebar -->
+  </div><!-- /demo-container -->
 </section>
 
 <div class="dither-strip"></div>
 
-<!-- ABOUT -->
+<!-- ==================== ABOUT ==================== -->
 <section id="about" class="dot-grid ornament-bg dither">
   <div class="about-grid">
     <div class="about-text">
-      <h2><span style="color:#FF1A1A;">REAL-TIME</span><br><span style="color:#1A3FFF;">HAND GESTURE</span><br>RECOGNITION</h2>
+      <h2>
+        <span style="color:#FF1A1A;">REAL-TIME</span><br>
+        <span style="color:#1A3FFF;">HAND GESTURE</span><br>
+        RECOGNITION
+      </h2>
       <p>
-        Built for <strong>Irish Sign Language</strong>, this system uses a custom-trained model to detect and classify hand shapes, orientations, and movements directly from a live webcam feed.
+        Built for <strong>Irish Sign Language</strong>, this system uses a custom-trained model to detect
+        and classify hand shapes, orientations, and movements directly from a live webcam feed.
       </p>
       <p>
-        The model runs <strong>entirely in-browser</strong>, with no data sent to external servers. All inference happens locally, on-device — fast, private, and accessible.
+        The model runs <strong>entirely in-browser</strong>, with no data sent to external servers.
+        All inference happens locally, on-device — fast, private, and accessible.
       </p>
       <p>
-        Drawing from a focused dataset of <strong>4 ISL words</strong>, the system handles natural variation in hand size, lighting conditions, and signing style — with more signs to be added over time.
+        Drawing from a focused dataset of <strong>4 ISL words</strong>, the system handles natural
+        variation in hand size, lighting conditions, and signing style — with more signs to be added
+        over time.
       </p>
     </div>
     <div class="stats-grid">
@@ -1731,12 +304,10 @@
   </div>
 </section>
 
-<!-- SIGNS REFERENCE -->
-<!-- SUBMIT OVERLAY -->
+<!-- ==================== SUBMIT PANEL ==================== -->
 <div id="submitOverlay" onclick="closeSubmitPanel(event)"></div>
 
 <div id="submitPanel">
-  <!-- Header -->
   <div class="sp-header">
     <div class="sp-title">
       <span class="sp-tag">CONTRIBUTE</span>
@@ -1745,10 +316,8 @@
     <button class="sp-close" onclick="closeSubmitPanel()">✕ CLOSE</button>
   </div>
 
-  <!-- Scrollable body -->
   <div class="sp-body">
 
-    <!-- Camera + Form -->
     <div class="sp-two-col">
 
       <!-- Camera -->
@@ -1760,7 +329,7 @@
         <div class="rec-label" id="recLabel">● RECORDING</div>
         <div class="rec-ring-wrap" id="recRingWrap">
           <svg class="rec-ring-svg" viewBox="0 0 100 100">
-            <circle class="rec-ring-bg"  cx="50" cy="50" r="45"/>
+            <circle class="rec-ring-bg" cx="50" cy="50" r="45"/>
             <circle class="rec-ring-bar" cx="50" cy="50" r="45" id="recRingBar"/>
           </svg>
         </div>
@@ -1768,7 +337,7 @@
         <video id="submitVideo" autoplay playsinline muted></video>
         <canvas id="submitCanvas"></canvas>
         <div class="submit-cam-idle" id="submitCamIdle" onclick="startSubmitCamera()">
-          <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#ffffff;">Click to open camera</span>
+          <span style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#ffffff;">Click to open camera</span>
         </div>
         <div class="submit-cam-strip">
           <span id="submitCamStatus">STANDBY</span>
@@ -1781,7 +350,8 @@
       <div class="submit-form-panel">
         <div class="form-row">
           <label class="form-label">// Sign Name / Label</label>
-          <input class="form-input" type="text" id="signName" placeholder="e.g. HELLO, THANK_YOU, YES …" maxlength="40"/>
+          <input class="form-input" type="text" id="signName"
+            placeholder="e.g. HELLO, THANK_YOU, YES …" maxlength="40"/>
         </div>
         <div class="form-row">
           <label class="form-label">// Category</label>
@@ -1803,19 +373,27 @@
         </div>
         <div class="form-row">
           <label class="form-label">// Notes (optional)</label>
-          <textarea class="form-textarea" id="signNotes" placeholder="Any context, regional variation, quality notes…" maxlength="200"></textarea>
+          <textarea class="form-textarea" id="signNotes"
+            placeholder="Any context, regional variation, quality notes…" maxlength="200"></textarea>
         </div>
         <div class="record-controls">
-          <button class="btn-record" id="recBtn" onclick="toggleRecording()" disabled>● RECORD (60 FRAMES)</button>
-          <button class="btn-preview" id="prevBtn" onclick="previewCapture()" disabled>▶ PREVIEW</button>
+          <button class="btn-record" id="recBtn" onclick="toggleRecording()" disabled>
+            ● RECORD (60 FRAMES)
+          </button>
+          <button class="btn-preview" id="prevBtn" onclick="previewCapture()" disabled>
+            ▶ PREVIEW
+          </button>
         </div>
         <div class="capture-status">
           <div class="capture-dot" id="captureDot"></div>
           <span id="captureStatusText">No recording yet — open camera first</span>
         </div>
-        <button class="btn-submit-sign" id="submitBtn" onclick="submitSign()" disabled>SUBMIT FOR REVIEW →</button>
-      </div>
-    </div>
+        <button class="btn-submit-sign" id="submitBtn" onclick="submitSign()" disabled>
+          SUBMIT FOR REVIEW →
+        </button>
+      </div><!-- /submit-form-panel -->
+
+    </div><!-- /sp-two-col -->
 
     <!-- Queue -->
     <div>
@@ -1825,917 +403,66 @@
       </div>
       <div style="margin-top:0.75rem;">
         <div class="queue-list" id="queueList">
-          <div style="font-size:11px;color:#C0C4D0;padding:8px 0;letter-spacing:1px;">No submissions yet. Record a sign above to get started.</div>
+          <div style="font-size:11px; color:#C0C4D0; padding:8px 0; letter-spacing:1px;">
+            No submissions yet. Record a sign above to get started.
+          </div>
         </div>
       </div>
       <div class="sp-queue-actions">
-        <button onclick="exportAllSubmissions()" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;background:transparent;color:var(--accent-blue,#1A3FFF);border:1px solid #1A3FFF30;padding:8px 16px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent-blue,#1A3FFF)'" onmouseout="this.style.borderColor='#1A3FFF30'">↓ EXPORT ALL AS JSON</button>
-        <button onclick="clearQueue()" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;background:transparent;color:#C0C4D0;border:1px solid #1A3FFF20;padding:8px 16px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.color='var(--thermal-red)'" onmouseout="this.style.color='#C0C4D0'">✕ CLEAR QUEUE</button>
+        <button onclick="exportAllSubmissions()"
+          style="font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:2px;
+                 background:transparent; color:var(--accent-blue,#1A3FFF);
+                 border:1px solid #1A3FFF30; padding:8px 16px; cursor:pointer; transition:all 0.15s;"
+          onmouseover="this.style.borderColor='var(--accent-blue,#1A3FFF)'"
+          onmouseout="this.style.borderColor='#1A3FFF30'">
+          ↓ EXPORT ALL AS JSON
+        </button>
+        <button onclick="clearQueue()"
+          style="font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:2px;
+                 background:transparent; color:#C0C4D0;
+                 border:1px solid #1A3FFF20; padding:8px 16px; cursor:pointer; transition:all 0.15s;"
+          onmouseover="this.style.color='var(--thermal-red)'"
+          onmouseout="this.style.color='#C0C4D0'">
+          ✕ CLEAR QUEUE
+        </button>
       </div>
     </div>
 
-  </div>
-</div>
+  </div><!-- /sp-body -->
+</div><!-- /submitPanel -->
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <div class="dither-strip"></div>
 
-<!-- FOOTER -->
+<!-- ==================== FOOTER ==================== -->
 <footer>
   <div class="footer-left">MIZO</div>
   <div class="footer-meta">
-    IRISH SIGN LANGUAGE RECOGNITION SYSTEM &nbsp;·&nbsp; BUILT WITH CUSTOM MODEL &nbsp;·&nbsp; ON-DEVICE INFERENCE
+    IRISH SIGN LANGUAGE RECOGNITION SYSTEM &nbsp;·&nbsp;
+    BUILT WITH CUSTOM MODEL &nbsp;·&nbsp; ON-DEVICE INFERENCE
   </div>
   <div class="footer-meta" id="clock"></div>
 </footer>
 
-<script>
-/* =====================================================
-   MIZO — ISL RECOGNITION SYSTEM
-   =====================================================
-   Model: LSTM (60 × 1662) trained with MediaPipe Holistic
-   Pipeline mirrors mizo__3_.ipynb exactly:
-     - MediaPipe Holistic → pose(132) + face(1404) + lh(63) + rh(63) = 1662
-     - StandardScaler transform (load scaler.json exported from scaler.pkl)
-     - 60-frame sequence buffer
-     - TFJS model.predict → softmax over actions
-     - Stability check: last 10 predictions all same + confidence > 0.5
-     - Sentence buffer: last 5 confirmed actions
-   ===================================================== */
-
-/* ── CONFIGURE YOUR MODEL HERE ──────────────────────
-   1. Convert Mizo.h5  →  tensorflowjs_converter --input_format keras Mizo.h5 ./tfjs_model
-   2. Export scaler    →  python -c "import pickle,json,numpy as np; s=pickle.load(open('scaler.pkl','rb')); json.dump({'mean':s.mean_.tolist(),'std':s.scale_.tolist()},open('scaler.json','w'))"
-   3. Place model.json + scaler.json alongside this HTML (or update paths below)
-   ──────────────────────────────────────────────── */
-const MODEL_PATH   = './tfjs_model/model.json';
-const SCALER_PATH  = './scaler.json';
-const THRESHOLD    = 0.5;
-const SEQ_LEN      = 60;
-const STABILITY_N  = 10;   // last N predictions must agree before confirming
-
-// ── ACTIONS — must match the `actions` array in the notebook ──
-const ACTIONS = ['HELLO', 'THANK YOU', 'YES', 'NO'];   // ← update with your actual trained actions
-
-/* ── STATE ──────────────────────────────────────── */
-let mizoModel    = null;
-let scalerMean   = null;
-let scalerStd    = null;
-let holisticReady = false;
-let holistic      = null;
-let lastResults   = null;   // MediaPipe results from most recent frame
-
-let sequence     = [];      // rolling 60-frame keypoint buffer
-let predictions  = [];      // rolling STABILITY_N argmax buffer
-let sentence     = [];      // confirmed action sentence (last 5)
-
-let cameraActive = false;
-let stream = null;
-let animFrame = null;
-let frameCount = 0;
-let lastFpsTime = Date.now();
-let fps = 0;
-
-/* ── LOAD MODEL + SCALER ────────────────────────── */
-async function loadMizo() {
-  setStatus('LOADING MODEL…');
-  try {
-    // TF.js loaded via CDN tag below
-    mizoModel = await tf.loadLayersModel(MODEL_PATH);
-    const scalerRes  = await fetch(SCALER_PATH);
-    if (!scalerRes.ok) throw new Error('Scaler fetch failed: ' + scalerRes.status);
-    const scalerData = await scalerRes.json();
-    // Validate scaler shape — must be arrays of 1662 finite numbers
-    if (!Array.isArray(scalerData.mean) || !Array.isArray(scalerData.std) ||
-        scalerData.mean.length !== 1662 || scalerData.std.length !== 1662 ||
-        !scalerData.mean.every(Number.isFinite) || !scalerData.std.every(Number.isFinite)) {
-      throw new Error('Scaler data malformed or wrong shape');
-    }
-    scalerMean = scalerData.mean;
-    scalerStd  = scalerData.std;
-    setStatus('MODEL READY');
-    console.log('[Mizo] Model loaded. Input shape:', mizoModel.inputs[0].shape);
-  } catch (e) {
-    setStatus('MODEL NOT FOUND — DEMO MODE');
-    console.warn('[Mizo] Could not load model/scaler. Running demo stub.', e);
-  }
-}
-
-/* ── MEDIAPIPE HOLISTIC SETUP ───────────────────── */
-function initHolistic() {
-  if (!window.Holistic) { console.warn('[Mizo] MediaPipe Holistic not loaded'); return; }
-  holistic = new Holistic({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}` });
-  holistic.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-  holistic.onResults(r => { lastResults = r; });
-  holisticReady = true;
-}
-
-/* ── KEYPOINT EXTRACTION — mirrors extract_keypoints() ── */
-function extractKeypoints(results) {
-  // pose: 33 landmarks × 4 (x,y,z,visibility) = 132
-  const pose = results.poseLandmarks
-    ? results.poseLandmarks.flatMap(l => [l.x, l.y, l.z, l.visibility])
-    : new Array(132).fill(0);
-
-  // face: 468 landmarks × 3 = 1404
-  const face = results.faceLandmarks
-    ? results.faceLandmarks.flatMap(l => [l.x, l.y, l.z])
-    : new Array(1404).fill(0);
-
-  // left hand: 21 × 3 = 63
-  const lh = results.leftHandLandmarks
-    ? results.leftHandLandmarks.flatMap(l => [l.x, l.y, l.z])
-    : new Array(63).fill(0);
-
-  // right hand: 21 × 3 = 63
-  const rh = results.rightHandLandmarks
-    ? results.rightHandLandmarks.flatMap(l => [l.x, l.y, l.z])
-    : new Array(63).fill(0);
-
-  return [...pose, ...face, ...lh, ...rh]; // 1662 total
-}
-
-/* ── STANDARD SCALER TRANSFORM ──────────────────── */
-function scalerTransform(kp) {
-  if (!scalerMean || !scalerStd) return kp;
-  return kp.map((v, i) => (v - scalerMean[i]) / (scalerStd[i] + 1e-8));
-}
-
-/* ── DRAW SKELETON ON CANVAS ────────────────────── */
-function drawSkeleton(ctx, results, w, h) {
-  if (!results) return;
-
-  function drawConnections(landmarks, connections, color) {
-    if (!landmarks) return;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    connections.forEach(([a, b]) => {
-      if (!landmarks[a] || !landmarks[b]) return;
-      ctx.beginPath();
-      ctx.moveTo(landmarks[a].x * w, landmarks[a].y * h);
-      ctx.lineTo(landmarks[b].x * w, landmarks[b].y * h);
-      ctx.stroke();
-    });
-    landmarks.forEach(l => {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(l.x * w, l.y * h, 2, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  // Hand connections (MediaPipe standard)
-  const HAND_CONN = [
-    [0,1],[1,2],[2,3],[3,4],
-    [0,5],[5,6],[6,7],[7,8],
-    [0,9],[9,10],[10,11],[11,12],
-    [0,13],[13,14],[14,15],[15,16],
-    [0,17],[17,18],[18,19],[19,20],
-    [5,9],[9,13],[13,17]
-  ];
-  drawConnections(results.leftHandLandmarks,  HAND_CONN, 'rgba(26,63,255,0.75)');
-  drawConnections(results.rightHandLandmarks, HAND_CONN, 'rgba(255,26,26,0.85)');
-
-  // Pose connections (key upper-body ones)
-  const POSE_CONN = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24]];
-  if (results.poseLandmarks) {
-    ctx.strokeStyle = 'rgba(255,100,0,0.4)';
-    ctx.lineWidth = 1;
-    POSE_CONN.forEach(([a,b]) => {
-      const la = results.poseLandmarks[a], lb = results.poseLandmarks[b];
-      if (!la || !lb) return;
-      ctx.beginPath();
-      ctx.moveTo(la.x*w, la.y*h);
-      ctx.lineTo(lb.x*w, lb.y*h);
-      ctx.stroke();
-    });
-  }
-}
-
-/* ── DEMO STUB (runs when model/scaler not loaded) ── */
-const DEMO_ACTIONS = ACTIONS.length > 0 ? ACTIONS : ['1','2','3'];
-let demoIdx = 0, demoTick = 0;
-function demoPredict() {
-  demoTick++;
-  if (demoTick > 45) { demoTick = 0; demoIdx = (demoIdx+1) % DEMO_ACTIONS.length; }
-  return { action: DEMO_ACTIONS[demoIdx], confidence: 0.78 + Math.random()*0.2, stable: true };
-}
-
-/* ── MAIN FRAME PROCESSOR ───────────────────────── */
-async function processHolisticFrame(video, overlayCanvas) {
-  const w = overlayCanvas.width, h = overlayCanvas.height;
-  const ctx = overlayCanvas.getContext('2d');
-
-  // Run MediaPipe Holistic on the video frame
-  if (holisticReady && holistic) {
-    await holistic.send({ image: video });
-  }
-
-  const results = lastResults;
-
-  // Apply thermal colour map to video
-  applyThermal(video, overlayCanvas);
-
-  // Draw skeleton overlay on top of thermal
-  if (results) drawSkeleton(ctx, results, w, h);
-
-  // HUD grid + targeting box
-  ctx.strokeStyle = 'rgba(26,63,255,0.08)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
-  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(26,63,255,0.4)';
-  ctx.strokeRect(w/2-40, h/2-40, 80, 80);
-
-  // Update hand presence indicators
-  const hasLeft  = !!(results && results.leftHandLandmarks);
-  const hasRight = !!(results && results.rightHandLandmarks);
-  document.getElementById('leftHandBar').style.width  = hasLeft  ? '100%' : '0%';
-  document.getElementById('rightHandBar').style.width = hasRight ? '100%' : '0%';
-
-  // ── DEMO MODE ──
-  if (!mizoModel) {
-    const d = demoPredict();
-    updateHUD({ sign: d.action, confidence: d.confidence, stable: d.stable });
-    return;
-  }
-
-  // ── REAL INFERENCE ──
-  if (!results) return;
-
-  const kp = extractKeypoints(results);
-  const kpScaled = scalerTransform(kp);
-  sequence.push(kpScaled);
-  if (sequence.length > SEQ_LEN) sequence.shift();
-
-  updateBufferBar(sequence.length);
-
-  if (sequence.length < SEQ_LEN) return; // not enough frames yet
-
-  const inputTensor = tf.tensor3d([sequence], [1, SEQ_LEN, 1662]);
-  const predTensor  = mizoModel.predict(inputTensor);
-  const probs       = await predTensor.data();
-  inputTensor.dispose();
-  predTensor.dispose();
-
-  const argmax = probs.indexOf(Math.max(...probs));
-  if (argmax < 0 || argmax >= ACTIONS.length) return;
-  predictions.push(argmax);
-  if (predictions.length > STABILITY_N) predictions.shift();
-
-  const confidence = Math.min(1, Math.max(0, probs[argmax]));
-  const stable     = predictions.length === STABILITY_N
-    && new Set(predictions).size === 1
-    && confidence > THRESHOLD;
-
-  if (stable) {
-    const action = ACTIONS[argmax];
-    if (sentence.length === 0 || sentence[sentence.length-1] !== action) {
-      sentence.push(action);
-      if (sentence.length > 5) sentence.shift();
-      addLogEntry(action, Math.round(confidence * 100));
-      updateSentence();
-    }
-  }
-
-  updateHUD({ sign: ACTIONS[argmax], confidence, stable });
-}
-/* ── END MODEL INTEGRATION ───────────────────────── */
-
-// Thermal colour map — full spectrum (black → blue → cyan → green → yellow → orange → red → white)
-function thermalColor(luminance) {
-  const stops = [
-    [0,    [0,   0,   0]],
-    [0.13, [0,   0, 128]],
-    [0.28, [0,   0, 255]],
-    [0.42, [0, 255, 255]],
-    [0.57, [0, 255,   0]],
-    [0.71, [255, 255,  0]],
-    [0.85, [255, 128,  0]],
-    [0.93, [255,   0,  0]],
-    [1.0,  [255, 255, 255]]
-  ];
-  let lo = stops[0], hi = stops[stops.length - 1];
-  for (let i = 0; i < stops.length - 1; i++) {
-    if (luminance >= stops[i][0] && luminance <= stops[i + 1][0]) {
-      lo = stops[i]; hi = stops[i + 1]; break;
-    }
-  }
-  const t = (luminance - lo[0]) / (hi[0] - lo[0] + 0.0001);
-  return [
-    Math.round(lo[1][0] + t * (hi[1][0] - lo[1][0])),
-    Math.round(lo[1][1] + t * (hi[1][1] - lo[1][1])),
-    Math.round(lo[1][2] + t * (hi[1][2] - lo[1][2]))
-  ];
-}
-
-/* ── Bayer 8×8 ordered dither matrix ── */
-const BAYER8 = [
-   0, 32,  8, 40,  2, 34, 10, 42,
-  48, 16, 56, 24, 50, 18, 58, 26,
-  12, 44,  4, 36, 14, 46,  6, 38,
-  60, 28, 52, 20, 62, 30, 54, 22,
-   3, 35, 11, 43,  1, 33,  9, 41,
-  51, 19, 59, 27, 49, 17, 57, 25,
-  15, 47,  7, 39, 13, 45,  5, 37,
-  63, 31, 55, 23, 61, 29, 53, 21
-].map(v => v / 64 - 0.5); // normalised to [-0.5, 0.5]
-
-function applyThermal(srcCanvas, destCanvas) {
-  destCanvas.width  = srcCanvas.videoWidth  || srcCanvas.width;
-  destCanvas.height = srcCanvas.videoHeight || srcCanvas.height;
-  const ctx = destCanvas.getContext('2d');
-  ctx.drawImage(srcCanvas, 0, 0);
-  const imgData = ctx.getImageData(0, 0, destCanvas.width, destCanvas.height);
-  const d = imgData.data;
-  const W = destCanvas.width;
-
-  for (let i = 0; i < d.length; i += 4) {
-    const px = (i / 4) % W;
-    const py = Math.floor((i / 4) / W);
-
-    // Raw luminance
-    const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
-
-    // Bayer dither: add threshold offset before quantising luminance to 8 levels
-    const bx = px % 8, by = py % 8;
-    const threshold = BAYER8[by * 8 + bx] * 0.18; // spread strength
-    const ditheredLum = Math.min(1, Math.max(0, lum + threshold));
-
-    // Quantise to 8 steps to get that chunky pixel look
-    const quantised = Math.round(ditheredLum * 7) / 7;
-
-    const [r, g, b] = thermalColor(quantised);
-    d[i] = r; d[i + 1] = g; d[i + 2] = b;
-  }
-  ctx.putImageData(imgData, 0, 0);
-
-  // Scanlines
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  for (let y = 0; y < destCanvas.height; y += 4) {
-    ctx.fillRect(0, y, destCanvas.width, 2);
-  }
-  // HUD grid
-  ctx.strokeStyle = 'rgba(26,63,255,0.08)';
-  ctx.lineWidth = 1;
-  const step = 40;
-  for (let x = 0; x < destCanvas.width; x += step) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, destCanvas.height); ctx.stroke();
-  }
-  for (let y = 0; y < destCanvas.height; y += step) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(destCanvas.width, y); ctx.stroke();
-  }
-  // Targeting box
-  const cx = destCanvas.width / 2, cy = destCanvas.height / 2;
-  ctx.strokeStyle = 'rgba(26,63,255,0.4)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(cx - 40, cy - 40, 80, 80);
-}
-
-/* ── UI HELPERS ──────────────────────────────────── */
-function setStatus(txt) { document.getElementById('camStatus').textContent = txt; }
-function updateBufferBar(n) {
-  const pct = Math.round((n / SEQ_LEN) * 100);
-  document.getElementById('bufferFill').style.width  = pct + '%';
-  document.getElementById('bufferVal').textContent   = n + '/' + SEQ_LEN;
-  document.getElementById('detectedSign').textContent = n < SEQ_LEN ? 'BUF' : document.getElementById('detectedSign').textContent;
-}
-function updateSentence() {
-  document.getElementById('sentenceDisplay').textContent = sentence.join('  ·  ') || '—';
-}
-function updateHUD({ sign, confidence, stable }) {
-  const confPct = Math.round((confidence || 0) * 100);
-  if (sequence.length >= SEQ_LEN) document.getElementById('detectedSign').textContent = sign || '—';
-  document.getElementById('confFill').style.width  = confPct + '%';
-  document.getElementById('confValue').textContent = confPct + '%';
-  document.getElementById('stableIndicator').textContent = stable ? '● STABLE' : '○ READING';
-  document.getElementById('stableIndicator').style.color = stable ? 'var(--phosphor)' : '#C0C4D0';
-}
-function addLogEntry(sign, conf) {
-  const log = document.getElementById('signLog');
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  // Use textContent to prevent XSS from model output
-  const signSpan = document.createElement('span');
-  signSpan.className = 'sign';
-  signSpan.textContent = sign;
-  const confSpan = document.createElement('span');
-  confSpan.className = 'conf';
-  confSpan.textContent = conf + '%';
-  entry.appendChild(signSpan);
-  entry.appendChild(confSpan);
-  log.insertBefore(entry, log.firstChild);
-  while (log.children.length > 8) log.removeChild(log.lastChild);
-}
-
-/* ── MAIN LOOP ───────────────────────────────────── */
-async function runLoop() {
-  if (!cameraActive) return;
-  const video  = document.getElementById('videoElement');
-  const canvas = document.getElementById('canvasOverlay');
-
-  frameCount++;
-  const now = Date.now();
-  if (now - lastFpsTime >= 1000) { fps = frameCount; frameCount = 0; lastFpsTime = now; }
-  document.getElementById('frameCounter').textContent = 'FRAME: ' + String((fps * Math.floor((now - lastFpsTime)/1000)) + frameCount).padStart(4,'0');
-  document.getElementById('fpsCounter').textContent   = 'FPS: '   + String(fps||'--').padStart(2,'0');
-
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    try { await processHolisticFrame(video, canvas); } catch(e) { console.error('[Mizo loop]', e); }
-  }
-  animFrame = requestAnimationFrame(runLoop);
-}
-
-/* ── CAMERA CONTROLS ─────────────────────────────── */
-async function startCamera() {
-  if (cameraActive) return;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
-    const video = document.getElementById('videoElement');
-    video.srcObject = stream;
-    video.style.display = 'block';
-    document.getElementById('cameraPlaceholder').style.display = 'none';
-    cameraActive = true;
-    const recDot = document.getElementById('recDot');
-    recDot.style.background   = 'var(--thermal-red)';
-    recDot.style.boxShadow    = '0 0 8px var(--thermal-red)';
-    setStatus('LIVE ● REC');
-    document.getElementById('startBtn').textContent = '■ STOP CAMERA';
-    document.getElementById('startBtn').classList.add('active');
-    sequence = []; predictions = [];
-    runLoop();
-  } catch(e) { setStatus('ACCESS DENIED'); }
-}
-function stopCamera() {
-  cameraActive = false;
-  if (animFrame) cancelAnimationFrame(animFrame);
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  const video  = document.getElementById('videoElement');
-  const canvas = document.getElementById('canvasOverlay');
-  video.srcObject = null; video.style.display = 'none';
-  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
-  document.getElementById('cameraPlaceholder').style.display = 'flex';
-  document.getElementById('recDot').style.background   = '#C0C4D0';
-  document.getElementById('recDot').style.boxShadow    = 'none';
-  setStatus('STANDBY');
-  document.getElementById('startBtn').textContent = '▶ INITIALISE CAMERA';
-  document.getElementById('startBtn').classList.remove('active');
-  document.getElementById('detectedSign').textContent  = '—';
-  document.getElementById('confFill').style.width      = '0%';
-  document.getElementById('confValue').textContent     = '0%';
-  document.getElementById('bufferFill').style.width    = '0%';
-  document.getElementById('bufferVal').textContent     = '0/' + SEQ_LEN;
-  sequence = []; predictions = [];
-}
-function toggleCamera() { cameraActive ? stopCamera() : startCamera(); }
-
-// Radar animation
-function drawRadar() {
-  const canvas = document.getElementById('radarCanvas');
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  const cx = w / 2, cy = h / 2, r = w / 2 - 4;
-  let angle = 0;
-  let dots = [];
-
-  function tick() {
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(0, 0, w, h);
-
-    // Rings
-    ctx.strokeStyle = '#1A3FFF20';
-    ctx.lineWidth = 0.5;
-    for (let i = 1; i <= 3; i++) {
-      ctx.beginPath();
-      ctx.arc(cx, cy, r * i / 3, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Crosshairs
-    ctx.strokeStyle = '#1A3FFF15';
-    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
-
-    // Sweep
-    const grad = ctx.createConicalGradient ? null : null;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    const g = ctx.createLinearGradient(0, 0, r, 0);
-    g.addColorStop(0, 'rgba(26,63,255,0.5)');
-    g.addColorStop(1, 'rgba(26,63,255,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, r, -0.5, 0.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    // Random dots
-    if (Math.random() > 0.96) {
-      const a = Math.random() * Math.PI * 2;
-      const d = Math.random() * r * 0.9;
-      dots.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, age: 0 });
-    }
-    dots = dots.filter(dot => dot.age < 80);
-    dots.forEach(dot => {
-      const alpha = (1 - dot.age / 80) * 0.8;
-      ctx.fillStyle = `rgba(26,63,255,${alpha})`;
-      ctx.beginPath();
-      ctx.arc(dot.x, dot.y, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      dot.age++;
-    });
-
-    angle += 0.04;
-    requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-// Clock
-function updateClock() {
-  document.getElementById('clock').textContent = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-}
-
-/* =====================================================
-   SUBMIT SIGN — CUSTOM GESTURE RECORDER
-   Uses the same MediaPipe Holistic pipeline as the
-   main demo to capture 60-frame keypoint sequences.
-   Submissions are stored in-memory and exportable as JSON.
-   ===================================================== */
-
-/* ── State ── */
-let submitStream    = null;
-let submitHolistic  = null;
-let submitLastResults = null;
-let submitCameraOn  = false;
-let submitAnimId    = null;
-
-let isRecording     = false;
-let capturedSeq     = null;        // { keypoints: float[][], frames: int }
-let recordBuffer    = [];
-let recordTargetFrames = 60;
-let recordFramesDone   = 0;
-
-let submissionQueue = [];          // array of submission objects
-
-/* ── PANEL OPEN / CLOSE ─────────────────────────── */
-function openSubmitPanel() {
-  document.getElementById('submitOverlay').classList.add('open');
-  document.getElementById('submitPanel').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeSubmitPanel(e) {
-  // If called from overlay click, only close if clicking the backdrop itself
-  if (e && e.target !== document.getElementById('submitOverlay')) return;
-  document.getElementById('submitOverlay').classList.remove('open');
-  document.getElementById('submitPanel').classList.remove('open');
-  document.body.style.overflow = '';
-  // Stop camera when closing panel
-  if (submitCameraOn) stopSubmitCamera();
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeSubmitPanel();
-});
-
-/* ── SUBMIT CAMERA ── */
-async function startSubmitCamera() {
-  if (submitCameraOn) return;
-  try {
-    submitStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
-    const video = document.getElementById('submitVideo');
-    video.srcObject = submitStream;
-    video.style.display = 'block';
-    document.getElementById('submitCamIdle').style.display = 'none';
-    submitCameraOn = true;
-
-    // Init holistic for submit camera (separate instance)
-    if (window.Holistic && !submitHolistic) {
-      submitHolistic = new Holistic({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}` });
-      submitHolistic.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-      submitHolistic.onResults(r => { submitLastResults = r; });
-    }
-
-    document.getElementById('submitCamStatus').textContent = 'LIVE';
-    document.getElementById('recBtn').disabled = false;
-    document.getElementById('submitHolisticStatus').textContent = 'HOLISTIC: ACTIVE';
-    submitRenderLoop();
-  } catch(e) {
-    document.getElementById('submitCamStatus').textContent = 'ACCESS DENIED';
-  }
-}
-
-function stopSubmitCamera() {
-  submitCameraOn = false;
-  if (submitAnimId) cancelAnimationFrame(submitAnimId);
-  if (submitStream) { submitStream.getTracks().forEach(t => t.stop()); submitStream = null; }
-  const video = document.getElementById('submitVideo');
-  video.srcObject = null; video.style.display = 'none';
-  document.getElementById('submitCamIdle').style.display = 'flex';
-  document.getElementById('submitCamStatus').textContent = 'STANDBY';
-  document.getElementById('recBtn').disabled = true;
-  document.getElementById('submitHolisticStatus').textContent = 'HOLISTIC: IDLE';
-  isRecording = false;
-  document.getElementById('recBtn').textContent = '● RECORD (60 FRAMES)';
-  document.getElementById('recBtn').classList.remove('recording');
-}
-
-async function submitRenderLoop() {
-  if (!submitCameraOn) return;
-  const video  = document.getElementById('submitVideo');
-  const canvas = document.getElementById('submitCanvas');
-
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    if (submitHolistic) await submitHolistic.send({ image: video });
-
-    // Draw thermal
-    applyThermal(video, canvas);
-
-    // Draw holistic skeleton
-    if (submitLastResults) {
-      const ctx = canvas.getContext('2d');
-      drawSkeleton(ctx, submitLastResults, canvas.width, canvas.height);
-    }
-
-    const hasLeft  = !!(submitLastResults && submitLastResults.leftHandLandmarks);
-    const hasRight = !!(submitLastResults && submitLastResults.rightHandLandmarks);
-    const hasPose  = !!(submitLastResults && submitLastResults.poseLandmarks);
-    document.getElementById('submitHolisticStatus').textContent =
-      'HOLISTIC: ' + [hasPose?'POSE':'', hasLeft?'LH':'', hasRight?'RH':''].filter(Boolean).join('+') || 'SCANNING';
-
-    // Recording logic
-    if (isRecording) {
-      const kp = extractKeypoints(submitLastResults || {});
-      const kpScaled = scalerTransform(kp);
-      recordBuffer.push(kpScaled);
-      recordFramesDone = recordBuffer.length;
-
-      // Update ring progress
-      const progress = recordFramesDone / recordTargetFrames;
-      const circ = 283;
-      document.getElementById('recRingBar').style.strokeDashoffset = circ - (circ * progress);
-      document.getElementById('submitFrameBadge').textContent = recordFramesDone + '/' + recordTargetFrames;
-      document.getElementById('submitFrameInfo').textContent = 'FRAME ' + String(recordFramesDone).padStart(2,'0') + '/' + recordTargetFrames;
-
-      if (recordFramesDone >= recordTargetFrames) finishRecording();
-    }
-  }
-
-  submitAnimId = requestAnimationFrame(submitRenderLoop);
-}
-
-/* ── RECORDING CONTROLS ── */
-function toggleRecording() {
-  if (!submitCameraOn) return;
-  if (isRecording) { cancelRecording(); return; }
-  startRecording();
-}
-
-function startRecording() {
-  recordBuffer = [];
-  recordFramesDone = 0;
-  isRecording = true;
-  capturedSeq = null;
-
-  document.getElementById('recBtn').textContent = '■ CANCEL';
-  document.getElementById('recBtn').classList.add('recording');
-  document.getElementById('recRingWrap').classList.add('active');
-  document.getElementById('recLabel').classList.add('active');
-  document.getElementById('submitFrameBadge').classList.add('active');
-  document.getElementById('recRingBar').style.strokeDashoffset = '283';
-  document.getElementById('captureDot').classList.remove('has-data');
-  document.getElementById('captureStatusText').textContent = 'Recording…  0/' + recordTargetFrames + ' frames';
-  document.getElementById('prevBtn').disabled = true;
-  document.getElementById('submitBtn').disabled = true;
-}
-
-function cancelRecording() {
-  isRecording = false;
-  recordBuffer = [];
-  document.getElementById('recBtn').textContent = '● RECORD (60 FRAMES)';
-  document.getElementById('recBtn').classList.remove('recording');
-  document.getElementById('recRingWrap').classList.remove('active');
-  document.getElementById('recLabel').classList.remove('active');
-  document.getElementById('submitFrameBadge').classList.remove('active');
-  document.getElementById('captureStatusText').textContent = 'Recording cancelled.';
-}
-
-function finishRecording() {
-  isRecording = false;
-  capturedSeq = { keypoints: recordBuffer.slice(0, recordTargetFrames), frames: recordTargetFrames };
-  recordBuffer = [];
-
-  document.getElementById('recBtn').textContent = '● RE-RECORD';
-  document.getElementById('recBtn').classList.remove('recording');
-  document.getElementById('recRingWrap').classList.remove('active');
-  document.getElementById('recLabel').classList.remove('active');
-  document.getElementById('submitFrameBadge').classList.remove('active');
-
-  document.getElementById('captureDot').classList.add('has-data');
-  document.getElementById('captureStatusText').textContent =
-    '✓ Captured ' + capturedSeq.frames + ' frames  ·  ' + capturedSeq.keypoints[0].length + ' features/frame';
-  document.getElementById('prevBtn').disabled = false;
-  document.getElementById('submitBtn').disabled = false;
-  showToast('RECORDING COMPLETE — ' + capturedSeq.frames + ' FRAMES CAPTURED');
-}
-
-/* ── PREVIEW ── */
-function previewCapture() {
-  if (!capturedSeq) return;
-  const canvas = document.getElementById('submitCanvas');
-  const ctx = canvas.getContext('2d');
-  // Flash the canvas border to indicate preview mode
-  canvas.style.outline = '2px solid var(--accent-red,#FF1A1A)';
-  setTimeout(() => { canvas.style.outline = 'none'; }, 800);
-  showToast('PREVIEW: ' + capturedSeq.frames + ' FRAMES · ' + capturedSeq.keypoints[0].length + ' FEATURES EACH');
-}
-
-/* ── SUBMIT ── */
-function submitSign() {
-  if (!capturedSeq) return;
-  const raw  = document.getElementById('signName').value.trim().toUpperCase();
-  const name = raw.replace(/[^A-Z0-9 _\-]/g, '').slice(0, 40); // strip anything non-alphanumeric
-  if (!name) { showToast('⚠ ENTER A SIGN NAME FIRST'); document.getElementById('signName').focus(); return; }
-
-  const submission = {
-    id:         Date.now(),
-    name:       name,
-    category:   document.getElementById('signCategory').value,
-    hand:       document.getElementById('signHand').value,
-    notes:      document.getElementById('signNotes').value.trim().replace(/<[^>]*>/g, '').slice(0, 200),
-    frames:     capturedSeq.frames,
-    featureDim: capturedSeq.keypoints[0].length,
-    timestamp:  new Date().toISOString(),
-    status:     'pending',
-    keypoints:  capturedSeq.keypoints
-  };
-
-  submissionQueue.push(submission);
-  capturedSeq = null;
-
-  // Reset form
-  document.getElementById('signName').value    = '';
-  document.getElementById('signNotes').value   = '';
-  document.getElementById('captureDot').classList.remove('has-data');
-  document.getElementById('captureStatusText').textContent = 'Submitted! Record another sign.';
-  document.getElementById('prevBtn').disabled  = true;
-  document.getElementById('submitBtn').disabled = true;
-  document.getElementById('recBtn').textContent = '● RECORD (60 FRAMES)';
-
-  renderQueue();
-  showToast('✓ SUBMITTED: ' + name);
-}
-
-/* ── QUEUE RENDER ── */
-function esc(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML; // entities-escaped, safe to use in template
-}
-
-function renderQueue() {
-  const list  = document.getElementById('queueList');
-  const count = document.getElementById('queueCount');
-  const pending = submissionQueue.filter(s => s.status === 'pending').length;
-  count.textContent = pending + ' PENDING';
-
-  if (submissionQueue.length === 0) {
-    list.innerHTML = '';
-    const empty = document.createElement('div');
-    empty.style.cssText = 'font-size:11px;color:#C0C4D0;padding:8px 0;letter-spacing:1px;';
-    empty.textContent = 'No submissions yet. Record a sign above to get started.';
-    list.appendChild(empty);
-    return;
-  }
-
-  list.innerHTML = '';
-  [...submissionQueue].reverse().forEach(sub => {
-    const row = document.createElement('div');
-    row.className = 'queue-item';
-
-    // Safe DOM construction — no raw user strings in innerHTML
-    const infoDiv = document.createElement('div');
-
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'qi-name';
-    nameDiv.textContent = sub.name;
-    infoDiv.appendChild(nameDiv);
-
-    const catDiv = document.createElement('div');
-    catDiv.className = 'qi-cat';
-    catDiv.textContent = sub.category.toUpperCase() + ' · ' + sub.hand.toUpperCase();
-    infoDiv.appendChild(catDiv);
-
-    if (sub.notes) {
-      const notesDiv = document.createElement('div');
-      notesDiv.style.cssText = 'font-size:10px;color:#C0C4D0;margin-top:2px;font-style:italic;';
-      notesDiv.textContent = sub.notes.slice(0, 60) + (sub.notes.length > 60 ? '…' : '');
-      infoDiv.appendChild(notesDiv);
-    }
-
-    const framesDiv = document.createElement('div');
-    framesDiv.className = 'qi-frames';
-    framesDiv.textContent = sub.frames + 'f · ' + sub.featureDim + 'd';
-
-    const statusDiv = document.createElement('div');
-    statusDiv.className = 'qi-status ' + sub.status;
-    statusDiv.textContent = sub.status.toUpperCase();
-
-    // Action buttons — id is a timestamp number, safe to inline
-    const actDiv = document.createElement('div');
-    actDiv.className = 'qi-actions';
-    actDiv.innerHTML =
-      `<button class="qi-btn dl" title="Download" onclick="downloadSingle(${sub.id})">↓</button>` +
-      `<button class="qi-btn" title="Mark reviewed" onclick="markReviewed(${sub.id})">✓</button>` +
-      `<button class="qi-btn" title="Delete" onclick="deleteSubmission(${sub.id})">✕</button>`;
-
-    row.appendChild(infoDiv);
-    row.appendChild(framesDiv);
-    row.appendChild(statusDiv);
-    row.appendChild(actDiv);
-    list.appendChild(row);
-  });
-}
-
-function markReviewed(id) {
-  const sub = submissionQueue.find(s => s.id === id);
-  if (sub) { sub.status = 'reviewed'; renderQueue(); showToast('MARKED REVIEWED: ' + sub.name); }
-}
-
-function deleteSubmission(id) {
-  submissionQueue = submissionQueue.filter(s => s.id !== id);
-  renderQueue();
-}
-
-function safeName(n) { return String(n).replace(/[^A-Z0-9_\-]/gi, '_').slice(0, 40); }
-
-function downloadSingle(id) {
-  const sub = submissionQueue.find(s => s.id === id);
-  if (!sub) return;
-  // Whitelist the fields included in export — no prototype pollution
-  const safe = {
-    id: sub.id, name: sub.name, category: sub.category, hand: sub.hand,
-    notes: sub.notes, frames: sub.frames, featureDim: sub.featureDim,
-    timestamp: sub.timestamp, status: sub.status, keypoints: sub.keypoints
-  };
-  const blob = new Blob([JSON.stringify(safe, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `mizo_sign_${safeName(sub.name)}_${sub.id}.json`; a.click();
-  URL.revokeObjectURL(a.href); // free memory
-  showToast('DOWNLOADED: ' + sub.name);
-}
-
-function exportAllSubmissions() {
-  if (submissionQueue.length === 0) { showToast('⚠ NO SUBMISSIONS TO EXPORT'); return; }
-  const safeQueue = submissionQueue.map(sub => ({
-    id: sub.id, name: sub.name, category: sub.category, hand: sub.hand,
-    notes: sub.notes, frames: sub.frames, featureDim: sub.featureDim,
-    timestamp: sub.timestamp, status: sub.status, keypoints: sub.keypoints
-  }));
-  const payload = { exported: new Date().toISOString(), count: safeQueue.length, submissions: safeQueue };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `mizo_submissions_${Date.now()}.json`; a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('EXPORTED ' + safeQueue.length + ' SUBMISSIONS');
-}
-
-function clearQueue() {
-  if (submissionQueue.length === 0) return;
-  submissionQueue = []; renderQueue(); showToast('QUEUE CLEARED');
-}
-
-/* ── TOAST ── */
-let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = '// ' + msg;
-  t.classList.add('show');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
-}
-updateClock();
-setInterval(updateClock, 1000);
-
-// Init Mizo
-loadMizo().then(() => initHolistic());
-</script>
-
-<!-- TensorFlow.js -->
-<!-- TensorFlow.js — pinned version -->
+<!-- ==================== SCRIPTS ==================== -->
+<!--
+  CDN libraries are loaded first so tf and Holistic
+  are available when our modules initialise.
+-->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js" crossorigin="anonymous"></script>
-<!-- MediaPipe Holistic — pinned version -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1635989137/holistic.js" crossorigin="anonymous"></script>
+
+<!-- Application modules — order matters -->
+<script src="js/config.js"></script>
+<script src="js/thermal.js"></script>
+<script src="js/model.js"></script>
+<script src="js/holistic.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/submit.js"></script>
+<script src="js/main.js"></script>
+
 </body>
 </html>
