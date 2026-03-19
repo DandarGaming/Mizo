@@ -169,6 +169,8 @@ The live detection loop:
 5. Displays confidence bars and the recognised action sentence on screen
 
 > Press **`x`** at any time to exit the live feed gracefully.
+>
+> 
 > Press **`p`** at any time to pause the live feed .
 
 ---
