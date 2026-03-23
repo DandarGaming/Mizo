@@ -2,6 +2,9 @@
    MIZO — SUBMIT.JS
    Sign submission panel: camera, 60-frame recorder,
    in-memory queue, JSON export.
+   After a recording finishes, predictCaptured() (model.js)
+   runs inference on the captured sequence and pre-fills
+   the sign name field if confidence is high enough.
 
    Depends on: config.js, thermal.js, model.js, ui.js
    ===================================================== */
@@ -64,7 +67,7 @@ async function startSubmitCamera() {
     });
 
     const video = document.getElementById('submitVideo');
-    video.srcObject   = submitStream;
+    video.srcObject     = submitStream;
     video.style.display = 'block';
     document.getElementById('submitCamIdle').style.display = 'none';
     submitCameraOn = true;
@@ -83,9 +86,9 @@ async function startSubmitCamera() {
       submitHolistic.onResults(r => { submitLastResults = r; });
     }
 
-    document.getElementById('submitCamStatus').textContent       = 'LIVE';
-    document.getElementById('recBtn').disabled                   = false;
-    document.getElementById('submitHolisticStatus').textContent  = 'HOLISTIC: ACTIVE';
+    document.getElementById('submitCamStatus').textContent      = 'LIVE';
+    document.getElementById('recBtn').disabled                  = false;
+    document.getElementById('submitHolisticStatus').textContent = 'HOLISTIC: ACTIVE';
 
     submitRenderLoop();
   } catch (e) {
@@ -102,7 +105,7 @@ function stopSubmitCamera() {
   if (submitStream) { submitStream.getTracks().forEach(t => t.stop()); submitStream = null; }
 
   const video = document.getElementById('submitVideo');
-  video.srcObject   = null;
+  video.srcObject     = null;
   video.style.display = 'none';
 
   document.getElementById('submitCamIdle').style.display          = 'flex';
@@ -146,7 +149,7 @@ async function submitRenderLoop() {
     document.getElementById('submitHolisticStatus').textContent =
       'HOLISTIC: ' + (parts.length ? parts.join('+') : 'SCANNING');
 
-    // ── Recording logic ──
+    // ── Recording logic ──────────────────────────────
     if (isRecording) {
       const kp       = extractKeypoints(submitLastResults || {});
       const kpScaled = scalerTransform(kp);
@@ -210,6 +213,11 @@ function cancelRecording() {
   document.getElementById('captureStatusText').textContent = 'Recording cancelled.';
 }
 
+/**
+ * Called when RECORD_TARGET frames have been captured.
+ * Stores the sequence, updates the UI, and runs predictCaptured()
+ * to pre-fill the sign name field if the model is confident.
+ */
 function finishRecording() {
   isRecording = false;
   capturedSeq = {
@@ -231,6 +239,30 @@ function finishRecording() {
   document.getElementById('submitBtn').disabled = false;
 
   showToast('RECORDING COMPLETE — ' + capturedSeq.frames + ' FRAMES CAPTURED');
+
+  // ── Auto-predict from captured sequence ──────────
+  // predictCaptured() is defined in model.js.
+  // It runs a forward pass on the full 60-frame window and,
+  // if the top-class confidence exceeds CONFIDENCE_THRESHOLD,
+  // pre-fills the sign name input with the predicted label.
+  predictCaptured(capturedSeq.keypoints).then(pred => {
+    if (!pred) return;
+    if (pred.confidence >= CONFIDENCE_THRESHOLD) {
+      const nameInput = document.getElementById('signName');
+      if (nameInput && !nameInput.value.trim()) {
+        // Only auto-fill if the user hasn't typed anything yet
+        nameInput.value = pred.label;
+      }
+      showToast(
+        'PREDICTED: ' + pred.label +
+        ' (' + Math.round(pred.confidence * 100) + '%) — verify before submitting'
+      );
+    } else {
+      showToast('LOW CONFIDENCE — PLEASE LABEL MANUALLY');
+    }
+  }).catch(err => {
+    console.warn('[Mizo submit] predictCaptured failed:', err);
+  });
 }
 
 // ─────────────────────────────────────────────────────
@@ -284,13 +316,13 @@ function submitSign() {
   capturedSeq = null;
 
   // Reset form
-  document.getElementById('signName').value                    = '';
-  document.getElementById('signNotes').value                   = '';
+  document.getElementById('signName').value                = '';
+  document.getElementById('signNotes').value               = '';
   document.getElementById('captureDot').classList.remove('has-data');
-  document.getElementById('captureStatusText').textContent     = 'Submitted! Record another sign.';
-  document.getElementById('prevBtn').disabled                  = true;
-  document.getElementById('submitBtn').disabled                = true;
-  document.getElementById('recBtn').textContent                = '● RECORD (60 FRAMES)';
+  document.getElementById('captureStatusText').textContent = 'Submitted! Record another sign.';
+  document.getElementById('prevBtn').disabled              = true;
+  document.getElementById('submitBtn').disabled            = true;
+  document.getElementById('recBtn').textContent            = '● RECORD (60 FRAMES)';
 
   renderQueue();
   showToast('✓ SUBMITTED: ' + name);
@@ -320,7 +352,7 @@ function renderQueue() {
     const row = document.createElement('div');
     row.className = 'queue-item';
 
-    // Info column (all DOM, no raw HTML injection)
+    // Info column (all DOM — no raw HTML injection)
     const infoDiv = document.createElement('div');
 
     const nameDiv = document.createElement('div');
