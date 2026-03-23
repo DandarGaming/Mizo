@@ -23,6 +23,9 @@ setInterval(updateClock, 1000);
 // Animate the radar minimap
 drawRadar();
 
-// Load the TF.js model + scaler, then initialise MediaPipe Holistic.
-// If either asset is missing the app falls back to demo-stub mode automatically.
+// ── Boot sequence ─────────────────────────────────────
+// 1. Load the TF.js model + StandardScaler (model.js).
+//    Sets status to "MODEL READY" or falls back to demo-stub mode.
+// 2. Once the model is ready, initialise MediaPipe Holistic (holistic.js).
+//    Holistic drives keypoint extraction in the main camera render loop.
 loadMizo().then(() => initHolistic());
