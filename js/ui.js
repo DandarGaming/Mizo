@@ -197,6 +197,21 @@ function updateClock() {
 // ─────────────────────────────────────────────────────
 
 /**
+ * Adapter called by model.js and camera.js.
+ * Maps the { label, confidence, classIdx } shape from the model
+ * onto the { sign, confidence, stable } shape that updateHUD() expects.
+ *
+ * @param {object} opts
+ * @param {string}  opts.label      - predicted sign label
+ * @param {number}  opts.confidence - [0, 1] confidence value
+ * @param {number}  opts.classIdx   - predicted class index (-1 = none)
+ */
+function updatePredictionUI({ label, confidence, classIdx }) {
+  const stable = classIdx >= 0 && (confidence || 0) >= CONFIDENCE_THRESHOLD;
+  updateHUD({ sign: label || '···', confidence: confidence || 0, stable });
+}
+
+/**
  * Display a brief toast notification at the bottom of the screen.
  *
  * @param {string} msg - message text (will be prefixed with "// ")

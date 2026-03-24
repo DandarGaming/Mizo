@@ -19,6 +19,15 @@ let cameraAnimId  = null;
 // Camera controls
 // ─────────────────────────────────────────────────────
  
+/** Toggle the main demo camera on/off. Called by the INITIALISE CAMERA button. */
+function toggleCamera() {
+  if (cameraOn) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+}
+
 /** Open the main demo camera and start the render loop. */
 async function startCamera() {
   if (cameraOn) return;
@@ -28,19 +37,19 @@ async function startCamera() {
       video: { width: 640, height: 480, facingMode: 'user' },
     });
  
-    const video = document.getElementById('mainVideo');
+    const video = document.getElementById('videoElement');
     video.srcObject     = cameraStream;
     video.style.display = 'block';
  
-    const idle = document.getElementById('camIdle');
+    const idle = document.getElementById('cameraPlaceholder');
     if (idle) idle.style.display = 'none';
  
     cameraOn = true;
     clearFrameBuffer();   // reset rolling inference buffer (model.js)
  
-    document.getElementById('camStatus').textContent = 'LIVE';
-    document.getElementById('startCamBtn').disabled  = true;
-    document.getElementById('stopCamBtn').disabled   = false;
+    document.getElementById('camStatus').textContent  = 'LIVE';
+    const btn = document.getElementById('startBtn');
+    if (btn) btn.textContent = '■ STOP CAMERA';
  
     renderLoop();
     console.log('[Mizo] Main camera started.');
@@ -57,15 +66,15 @@ function stopCamera() {
   if (cameraAnimId) { cancelAnimationFrame(cameraAnimId); cameraAnimId = null; }
   if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
  
-  const video = document.getElementById('mainVideo');
+  const video = document.getElementById('videoElement');
   if (video) { video.srcObject = null; video.style.display = 'none'; }
  
-  const idle = document.getElementById('camIdle');
+  const idle = document.getElementById('cameraPlaceholder');
   if (idle) idle.style.display = 'flex';
  
   document.getElementById('camStatus').textContent = 'STANDBY';
-  document.getElementById('startCamBtn').disabled  = false;
-  document.getElementById('stopCamBtn').disabled   = true;
+  const btn = document.getElementById('startBtn');
+  if (btn) btn.textContent = '▶ INITIALISE CAMERA';
  
   // Clear prediction HUD
   updatePredictionUI({ label: '···', confidence: 0, scores: [], classIdx: -1 });
@@ -90,8 +99,8 @@ function stopCamera() {
 async function renderLoop() {
   if (!cameraOn) return;
  
-  const video  = document.getElementById('mainVideo');
-  const canvas = document.getElementById('mainCanvas');
+  const video  = document.getElementById('videoElement');
+  const canvas = document.getElementById('canvasOverlay');
  
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
     canvas.width  = video.videoWidth;
@@ -121,7 +130,7 @@ async function renderLoop() {
       hasRight ? 'RH'   : '',
     ].filter(Boolean);
  
-    const holisticBadge = document.getElementById('holisticStatus');
+    const holisticBadge = document.getElementById('holisticBadge');
     if (holisticBadge) {
       holisticBadge.textContent = 'HOLISTIC: ' + (parts.length ? parts.join('+') : 'SCANNING');
     }

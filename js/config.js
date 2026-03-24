@@ -28,3 +28,4 @@ const PRED_EVERY = 6;
 
 // Number of frames in each sequence (must match model training)
 const SEQUENCE_LEN = 60;
+const SEQ_LEN      = SEQUENCE_LEN;  // alias used in ui.js
