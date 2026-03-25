@@ -16,18 +16,80 @@
      9. js/main.js  ← this file
    ===================================================== */
 
-// Start the footer clock immediately and update every second
-updateClock();
-setInterval(updateClock, 1000);
+let thermalMain = false;
+let video = null;
+let canvas = null;
 
-// Animate the radar minimap
-drawRadar();
+function toggleMainThermal() {
+  thermalMain = !thermalMain;
+  console.log('[Thermal Main]', thermalMain);
 
-// ── Boot sequence ─────────────────────────────────────
-// 1. Load the TF.js model + StandardScaler (model.js).
-//    Sets status to "MODEL READY" or falls back to demo-stub mode.
-// 2. Once the model is ready, initialise MediaPipe Holistic (holistic.js).
-//    Holistic drives keypoint extraction in the main camera render loop.
-loadMizo().then(async () => {
-  await initHolistic();
-});
+  const btn = document.getElementById('thermalMainBtn');
+  if (btn) {
+    btn.textContent = thermalMain ? 'THERMAL: ON' : 'THERMAL: OFF';
+    btn.dataset.active = String(thermalMain);
+  }
+}
+
+async function initCamera() {
+  video = document.getElementById('video');
+  canvas = document.getElementById('output');
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false
+  });
+
+  video.srcObject = stream;
+
+  return new Promise(resolve => {
+    video.onloadedmetadata = () => {
+      video.play();
+      resolve();
+    };
+  });
+}
+
+async function mainLoop() {
+  if (video.readyState >= 2) {
+    await processHolisticFrame(video);
+
+    applyThermal(video, canvas, thermalMain);
+
+    const results = getHolisticResults();
+
+    if (results) {
+      drawSkeleton(canvas, results);
+      updateStatus(results);
+    } else {
+      setIdleStatus();
+    }
+  }
+
+  requestAnimationFrame(mainLoop);
+}
+
+function updateStatus(results) {
+  const el = document.getElementById('status');
+
+  if (!el) return;
+
+  const hasPose = !!results.poseLandmarks;
+  const hasLH = !!results.leftHandLandmarks;
+  const hasRH = !!results.rightHandLandmarks;
+
+  el.textContent = `POSE:${hasPose} LH:${hasLH} RH:${hasRH}`;
+}
+
+function setIdleStatus() {
+  const el = document.getElementById('status');
+  if (el) el.textContent = 'IDLE';
+}
+
+async function startApp() {
+  await initCamera();
+  await initHolistic(); // 🔥 now async-safe
+  mainLoop();
+}
+
+startApp();
