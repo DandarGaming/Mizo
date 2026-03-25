@@ -6,11 +6,22 @@
 
    Depends on: config.js
    ===================================================== */
-let holistic = null;
-let holisticReady = false;
-let lastResults = null;
 
-async function initHolistic() {
+// ── Module state ──────────────────────────────────────
+var holisticReady = false;
+var holistic      = null;   // MediaPipe Holistic instance (main camera)
+var lastResults   = null;   // Most recent onResults payload
+
+// ─────────────────────────────────────────────────────
+// Initialisation
+// ─────────────────────────────────────────────────────
+
+/**
+ * Initialise MediaPipe Holistic for the main demo camera.
+ * Called once from main.js after loadMizo() resolves.
+ * Requires window.Holistic loaded from the MediaPipe CDN.
+ */
+function initHolistic() {
   if (!window.Holistic) {
     console.warn('[Mizo] MediaPipe Holistic not available — skeleton disabled.');
     return;
@@ -31,18 +42,6 @@ async function initHolistic() {
     lastResults = results;
   });
 
-  await holistic.initialize();
-
   holisticReady = true;
   console.log('[Mizo] Holistic initialised.');
-}
-
-async function processHolisticFrame(video) {
-  if (!holisticReady || !holistic) return;
-
-  await holistic.send({ image: video });
-}
-
-function getHolisticResults() {
-  return lastResults;
 }
