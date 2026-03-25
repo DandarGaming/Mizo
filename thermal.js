@@ -8,8 +8,8 @@
 // ── Thermal toggle flags ──────────────────────────────
 // Toggled by buttons in index.html.
 // Main demo and submit panel are controlled independently.
-let thermalMain   = true;
-let thermalSubmit = true;
+var thermalMain   = true;
+var thermalSubmit = true;
 
 // Full-spectrum thermal colour stops
 const THERMAL_STOPS = [

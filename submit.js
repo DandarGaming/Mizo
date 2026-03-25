@@ -6,19 +6,19 @@
    Depends on: config.js, thermal.js, model.js, ui.js
    ===================================================== */
 
-let submitStream       = null;
-let submitHolistic     = null;
-let submitLastResults  = null;
-let submitCameraOn     = false;
-let submitAnimId       = null;
+var submitStream       = null;
+var submitHolistic     = null;
+var submitLastResults  = null;
+var submitCameraOn     = false;
+var submitAnimId       = null;
 
-let isRecording        = false;
-let capturedSeq        = null;
-let recordBuffer       = [];
+var isRecording        = false;
+var capturedSeq        = null;
+var recordBuffer       = [];
 const RECORD_TARGET    = 60;
-let recordFramesDone   = 0;
+var recordFramesDone   = 0;
 
-let submissionQueue    = [];
+var submissionQueue    = [];
 
 // ── Panel open / close ────────────────────────────────
 

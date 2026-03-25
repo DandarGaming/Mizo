@@ -6,9 +6,9 @@
    Depends on: config.js, thermal.js, model.js, holistic.js, ui.js
    ===================================================== */
 
-let cameraStream = null;
-let cameraOn     = false;
-let cameraAnimId = null;
+var cameraStream = null;
+var cameraOn     = false;
+var cameraAnimId = null;
 
 async function startCamera() {
   if (cameraOn) return;
