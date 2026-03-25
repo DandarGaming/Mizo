@@ -259,10 +259,10 @@ accuracy_score(ytrue, yhat)               # overall accuracy
 - [x] Stacked LSTM model with dropout regularisation
 - [x] TensorBoard logging + early stopping
 - [x] Real-time inference with confidence visualisation
-- [ ] Add more default actions / sign language vocabulary
-- [ ] Export model to TensorFlow Lite for mobile deployment
+- [x] Export model to TensorFlow Lite for mobile deployment
+- [x] Web-based demo using TensorFlow.js
 - [ ] GUI wrapper for non-technical users
-- [ ] Web-based demo using TensorFlow.js
+- [ ] Add more default actions / sign language vocabulary
 
 Have an idea? [Open a feature request](../../issues) 🙌
 
