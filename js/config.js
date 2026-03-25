@@ -7,8 +7,8 @@
 // ── Model asset paths ─────────────────────────────────
 // Served relative to index.html.
 // model.json and group1-shard1of1.bin must sit in the same folder.
-const MODEL_PATH  = 'models/model.json';
-const SCALER_PATH = 'models/scaler.json';
+const MODEL_PATH  = 'model/model.json';
+const SCALER_PATH = 'model/scaler.json';
 
 // ── Sign class labels ─────────────────────────────────
 // MUST match the class order used during training (index 0 → 3).
