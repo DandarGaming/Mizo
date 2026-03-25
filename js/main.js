@@ -28,4 +28,6 @@ drawRadar();
 //    Sets status to "MODEL READY" or falls back to demo-stub mode.
 // 2. Once the model is ready, initialise MediaPipe Holistic (holistic.js).
 //    Holistic drives keypoint extraction in the main camera render loop.
-loadMizo().then(() => initHolistic());
+loadMizo().then(async () => {
+  await initHolistic();
+});
