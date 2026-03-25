@@ -32,6 +32,9 @@ async function startCamera() {
     document.getElementById('stopCamBtn').disabled         = false;
     document.getElementById('thermalMainBtn').disabled     = false;
 
+    const badge = document.getElementById('holisticStatus');
+    if (badge) badge.textContent = 'HOLISTIC: SCANNING';
+
     renderLoop();
     console.log('[Mizo] Main camera started.');
   } catch (err) {
@@ -55,6 +58,9 @@ function stopCamera() {
   document.getElementById('startCamBtn').disabled        = false;
   document.getElementById('stopCamBtn').disabled         = true;
   document.getElementById('thermalMainBtn').disabled     = true;
+
+  const badge = document.getElementById('holisticStatus');
+  if (badge) badge.textContent = 'HOLISTIC: IDLE';
 
   updatePredictionUI({ label: '···', confidence: 0, scores: [], classIdx: -1 });
   clearFrameBuffer();

@@ -8,8 +8,8 @@
 // ── Thermal toggle flags ──────────────────────────────
 // Toggled by buttons in index.html.
 // Main demo and submit panel are controlled independently.
-var thermalMain   = true;
-var thermalSubmit = true;
+var thermalMain   = false;
+var thermalSubmit = false;
 
 // Full-spectrum thermal colour stops
 const THERMAL_STOPS = [
@@ -111,8 +111,8 @@ function toggleMainThermal() {
   thermalMain = !thermalMain;
   const btn = document.getElementById('thermalMainBtn');
   if (btn) {
-    btn.textContent    = thermalMain ? 'THERMAL: ON' : 'THERMAL: OFF';
-    btn.dataset.active = String(thermalMain);
+    btn.textContent = thermalMain ? 'THERMAL: ON' : 'THERMAL: OFF';
+    btn.setAttribute('data-active', String(thermalMain));
   }
 }
 
@@ -120,8 +120,8 @@ function toggleSubmitThermal() {
   thermalSubmit = !thermalSubmit;
   const btn = document.getElementById('thermalSubmitBtn');
   if (btn) {
-    btn.textContent    = thermalSubmit ? 'THERMAL: ON' : 'THERMAL: OFF';
-    btn.dataset.active = String(thermalSubmit);
+    btn.textContent = thermalSubmit ? 'THERMAL: ON' : 'THERMAL: OFF';
+    btn.setAttribute('data-active', String(thermalSubmit));
   }
 }
 

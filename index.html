@@ -371,8 +371,8 @@
         <button id="startCamBtn" class="primary" onclick="startCamera()">▶ START CAMERA</button>
         <button id="stopCamBtn" disabled onclick="stopCamera()">■ STOP</button>
         <!-- Thermal toggle for main demo -->
-        <button id="thermalMainBtn" class="thermal-btn" data-active="true"
-                onclick="toggleMainThermal()" disabled>THERMAL: ON</button>
+        <button id="thermalMainBtn" class="thermal-btn" data-active="false"
+                onclick="toggleMainThermal()" disabled>THERMAL: OFF</button>
       </div>
     </div>
 
@@ -444,8 +444,8 @@
               <button onclick="startSubmitCamera()">▶ CAM</button>
               <button onclick="stopSubmitCamera()">■ STOP</button>
               <!-- Thermal toggle for submit panel -->
-              <button id="thermalSubmitBtn" class="thermal-btn" data-active="true"
-                      onclick="toggleSubmitThermal()" disabled>THERMAL: ON</button>
+              <button id="thermalSubmitBtn" class="thermal-btn" data-active="false"
+                      onclick="toggleSubmitThermal()" disabled>THERMAL: OFF</button>
             </div>
             <div id="recLabel" class="rec-label">RECORDING</div>
             <div id="submitFrameInfo" style="font-family:var(--mono);font-size:10px;color:var(--label);">
