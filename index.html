@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIZO — Sign Language Recognition</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #05070F;
+      --surface:      #0A0D1A;
+      --surface2:     #0F1422;
+      --border:       rgba(26,63,255,0.18);
+      --accent:       #1A3FFF;
+      --accent-dim:   rgba(26,63,255,0.3);
+      --accent-red:   #FF1A1A;
+      --accent-amber: #FFA500;
+      --accent-green: #22C55E;
+      --text:         #C8CDD8;
+      --text-dim:     #5A6070;
+      --label:        #8A90A0;
+      --mono:         'Share Tech Mono', monospace;
+      --sans:         'Rajdhani', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: var(--mono); font-size: 18px; letter-spacing: 6px; color: #fff; }
+    .logo span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+
+    #statusBadge {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      color: var(--accent); padding: 3px 10px;
+      border: 1px solid var(--accent-dim); border-radius: 2px;
+    }
+
+    /* ── Main grid ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── Camera panel ── */
+    .camera-panel { display: flex; flex-direction: column; gap: 10px; }
+
+    .cam-wrap {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+    }
+
+    #mainVideo {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; display: none;
+    }
+    #mainCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    #camIdle {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; color: var(--text-dim);
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    }
+    .cam-icon {
+      width: 48px; height: 48px;
+      border: 2px solid var(--border); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .cam-badge {
+      position: absolute;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+      padding: 3px 8px;
+      background: rgba(5,7,15,0.75);
+      border: 1px solid var(--border);
+    }
+    #camStatus     { top: 10px; left: 10px; color: var(--accent); }
+    #holisticStatus{ top: 10px; right: 10px; color: var(--label); }
+
+    /* Prediction HUD */
+    .pred-hud {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      background: linear-gradient(transparent, rgba(5,7,15,0.92));
+      display: flex; align-items: flex-end; gap: 12px;
+    }
+    #predLabel {
+      font-family: var(--mono); font-size: 28px; letter-spacing: 4px;
+      color: #fff; opacity: 0.3;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    #predLabel[data-active="true"] {
+      opacity: 1; color: var(--accent);
+      text-shadow: 0 0 20px rgba(26,63,255,0.5);
+    }
+    .pred-meta { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    #predConf { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 2px; }
+    .pred-bar-track { height: 3px; background: rgba(26,63,255,0.15); border-radius: 2px; overflow: hidden; }
+    #predBar { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.2s; }
+
+    /* ── Buttons ── */
+    .cam-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    button {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      border-radius: 2px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    button.primary { border-color: var(--accent); color: var(--accent); }
+    button.primary:hover:not(:disabled) { background: var(--accent); color: #fff; }
+    button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+
+    /* Thermal toggle — glows orange when OFF */
+    button.thermal-btn { border-color: var(--accent-amber); color: var(--accent-amber); }
+    button.thermal-btn[data-active="false"] { border-color: var(--text-dim); color: var(--text-dim); }
+    button.thermal-btn:hover:not(:disabled) { background: rgba(255,165,0,0.12); color: var(--accent-amber); border-color: var(--accent-amber); }
+
+    /* ── Sidebar ── */
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: 14px;
+    }
+    .panel-title {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+      color: var(--label); margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    #predScores { display: flex; flex-direction: column; gap: 6px; }
+    .score-row { display: grid; grid-template-columns: 60px 1fr 34px; align-items: center; gap: 6px; }
+    .score-label { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--label); }
+    .score-row.top .score-label { color: var(--accent); }
+    .score-bar-fill { height: 4px; background: var(--surface2); border-radius: 2px; }
+    .score-row.top .score-bar-fill { background: var(--accent); }
+    .score-pct { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: right; }
+
+    #radarCanvas { display: block; margin: 0 auto; opacity: 0.7; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--surface2); border: 1px solid var(--accent-dim);
+      color: var(--accent); font-family: var(--mono); font-size: 11px;
+      letter-spacing: 2px; padding: 10px 20px; border-radius: 2px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 9999; white-space: nowrap;
+    }
+    #toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 8px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--text-dim); letter-spacing: 1.5px;
+    }
+
+    /* ── Submit overlay ── */
+    #submitOverlay {
+      position: fixed; inset: 0;
+      background: rgba(5,7,15,0.88);
+      z-index: 500; display: none;
+      align-items: center; justify-content: center;
+    }
+    #submitOverlay.open { display: flex; }
+
+    #submitPanel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; width: min(860px, 96vw);
+      max-height: 92vh; overflow-y: auto;
+      padding: 24px; display: none;
+      flex-direction: column; gap: 16px;
+    }
+    #submitPanel.open { display: flex; }
+
+    .submit-header { display: flex; align-items: center; justify-content: space-between; }
+    .submit-title { font-family: var(--mono); font-size: 13px; letter-spacing: 4px; color: #fff; }
+
+    .submit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .submit-cam-wrap {
+      position: relative; aspect-ratio: 4/3;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 2px; overflow: hidden;
+    }
+    #submitVideo {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; display: none;
+    }
+    #submitCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    #submitCamIdle {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px; color: var(--text-dim);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 2px;
+    }
+
+    #submitCamStatus {
+      position: absolute; top: 8px; left: 8px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--accent); letter-spacing: 2px;
+    }
+    #submitHolisticStatus {
+      position: absolute; top: 8px; right: 8px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--label); letter-spacing: 1px;
+    }
+
+    #recRingWrap {
+      display: none; position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+    #recRingWrap.active { display: block; }
+
+    #submitFrameBadge {
+      position: absolute; inset: 0;
+      display: none; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 13px; color: #fff;
+    }
+    #submitFrameBadge.active { display: flex; }
+
+    .submit-controls { display: flex; flex-direction: column; gap: 10px; }
+
+    .rec-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--text-dim); }
+    #recLabel.active { color: var(--accent-red); }
+
+    .capture-status {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    }
+    #captureDot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-dim); flex-shrink: 0; transition: background 0.2s;
+    }
+    #captureDot.has-data { background: var(--accent-green); }
+    #captureStatusText { font-family: var(--mono); font-size: 10px; color: var(--label); letter-spacing: 1px; }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--label); }
+
+    input[type="text"], select, textarea {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono); font-size: 12px;
+      padding: 8px 10px; border-radius: 2px; outline: none; width: 100%;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    button.recording {
+      border-color: var(--accent-red); color: var(--accent-red);
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.55; } }
+
+    .queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    #queueCount { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--accent); }
+    #queueList { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+
+    .queue-item {
+      display: grid; grid-template-columns: 1fr auto auto auto;
+      align-items: center; gap: 8px; padding: 8px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 2px;
+    }
+    .qi-name { font-family: var(--mono); font-size: 12px; color: #fff; }
+    .qi-cat  { font-family: var(--mono); font-size: 10px; color: var(--label); margin-top: 2px; }
+    .qi-frames { font-family: var(--mono); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+    .qi-status { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 2px 6px; border-radius: 2px; }
+    .qi-status.pending  { color: var(--accent-amber); border: 1px solid rgba(255,165,0,0.3); }
+    .qi-status.reviewed { color: var(--accent-green); border: 1px solid rgba(34,197,94,0.3); }
+    .qi-actions { display: flex; gap: 4px; }
+    .qi-btn { font-family: var(--mono); font-size: 11px; padding: 4px 7px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; border-radius: 2px; letter-spacing: 0; }
+    .qi-btn:hover { border-color: var(--accent); color: #fff; }
+    .qi-btn.dl:hover { border-color: var(--accent-green); color: var(--accent-green); }
+
+    /* ── Sign Showcase ─────────────────────────────── */
+    .showcase-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 8px 20px 36px;
+    }
+    .showcase-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .showcase-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--label);
+    }
+    .showcase-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .showcase-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 480px) { .showcase-grid { grid-template-columns: 1fr; } }
+
+    .sign-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .sign-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 0 20px rgba(26,63,255,0.15);
+    }
+    .sign-gif-wrap {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: var(--surface2);
+    }
+    .sign-gif {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+      filter: grayscale(15%) contrast(1.05);
+      transition: filter 0.25s;
+    }
+    .sign-card:hover .sign-gif {
+      filter: grayscale(0%) contrast(1.1) brightness(1.05);
+    }
+    /* CRT scanline overlay */
+    .sign-gif-wrap::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+    .sign-corner-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      font-family: var(--mono);
+      font-size: 9px; letter-spacing: 2px;
+      color: rgba(255,255,255,0.45);
+      background: rgba(5,7,15,0.65);
+      padding: 2px 7px;
+      border: 1px solid rgba(26,63,255,0.22);
+      border-radius: 2px;
+      z-index: 2;
+    }
+    .sign-card-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-index {
+      font-family: var(--mono);
+      font-size: 9px; letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+    .sign-name {
+      font-family: var(--mono);
+      font-size: 12px; letter-spacing: 3px;
+      color: #fff; flex: 1;
+    }
+    .sign-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">MI<span>Z</span>O</div>
+    <div class="header-right">
+      <div id="statusBadge">INITIALISING…</div>
+      <button class="primary" onclick="openSubmitPanel()">+ SUBMIT SIGN</button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main>
+
+    <div class="camera-panel">
+      <div class="cam-wrap">
+        <video id="mainVideo" autoplay muted playsinline></video>
+        <canvas id="mainCanvas"></canvas>
+
+        <div id="camIdle">
+          <div class="cam-icon">⬡</div>
+          CAMERA STANDBY
+        </div>
+
+        <div class="cam-badge" id="camStatus">STANDBY</div>
+        <div class="cam-badge" id="holisticStatus">HOLISTIC: IDLE</div>
+
+        <div class="pred-hud">
+          <div id="predLabel" data-active="false">···</div>
+          <div class="pred-meta">
+            <div id="predConf"></div>
+            <div class="pred-bar-track">
+              <div id="predBar" data-active="false"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cam-controls">
+        <button id="startCamBtn" class="primary" onclick="startCamera()">▶ START CAMERA</button>
+        <button id="stopCamBtn" disabled onclick="stopCamera()">■ STOP</button>
+        <!-- Thermal toggle for main demo -->
+        <button id="thermalMainBtn" class="thermal-btn" data-active="false"
+                onclick="toggleMainThermal()" disabled>THERMAL: OFF</button>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="panel">
+        <div class="panel-title">CLASS SCORES</div>
+        <div id="predScores">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;">
+            Waiting for camera…
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="text-align:center;">
+        <div class="panel-title">SENSOR</div>
+        <canvas id="radarCanvas" width="80" height="80"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Sign Showcase ── -->
+  <section class="showcase-section">
+    <div class="showcase-header">
+      <span class="showcase-title">SUPPORTED SIGNS</span>
+      <span class="showcase-sub">hover to preview · model trained on 150 sequences per class</span>
+    </div>
+    <div class="showcase-grid">
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/hello.gif" alt="HELLO sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">HELLO</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 00</span>
+          <span class="sign-name">HELLO</span>
+          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 8px #1A3FFF;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/thanks.gif" alt="THANKS sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">THANKS</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 01</span>
+          <span class="sign-name">THANKS</span>
+          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 8px #22C55E;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/yes.gif" alt="YES sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">YES</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 02</span>
+          <span class="sign-name">YES</span>
+          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 8px #FFA500;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/no.gif" alt="NO sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">NO</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 03</span>
+          <span class="sign-name">NO</span>
+          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 8px #FF1A1A;"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Sign Showcase ── -->
+  <section class="showcase-section">
+    <div class="showcase-header">
+      <span class="showcase-title">SUPPORTED SIGNS</span>
+      <span class="showcase-sub">4 classes · 150 sequences each · mediapipe holistic keypoints</span>
+    </div>
+    <div class="showcase-grid">
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/hello.gif" alt="HELLO sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">HELLO</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 00</span>
+          <span class="sign-name">HELLO</span>
+          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 7px #1A3FFF;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/thanks.gif" alt="THANKS sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">THANKS</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 01</span>
+          <span class="sign-name">THANKS</span>
+          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 7px #22C55E;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/yes.gif" alt="YES sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">YES</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 02</span>
+          <span class="sign-name">YES</span>
+          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 7px #FFA500;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/no.gif" alt="NO sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">NO</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 03</span>
+          <span class="sign-name">NO</span>
+          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 7px #FF1A1A;"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>MIZO · ISL RECOGNITION</span>
+    <span id="footerClock">00:00:00 UTC</span>
+  </footer>
+
+  <div id="toast"></div>
+
+  <!-- Submit panel -->
+  <div id="submitOverlay" onclick="closeSubmitPanel(event)">
+    <div id="submitPanel">
+
+      <div class="submit-header">
+        <div class="submit-title">SUBMIT NEW SIGN</div>
+        <button onclick="closeSubmitPanel()">✕ CLOSE</button>
+      </div>
+
+      <div class="submit-grid">
+
+        <!-- Camera side -->
+        <div>
+          <div class="submit-cam-wrap">
+            <video id="submitVideo" autoplay muted playsinline></video>
+            <canvas id="submitCanvas"></canvas>
+
+            <div id="submitCamIdle">
+              <div class="cam-icon">⬡</div>
+              START CAMERA
+            </div>
+
+            <span id="submitCamStatus">STANDBY</span>
+            <span id="submitHolisticStatus">HOLISTIC: IDLE</span>
+
+            <div id="recRingWrap" style="width:90px;height:90px;">
+              <svg width="90" height="90" viewBox="0 0 90 90">
+                <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,26,26,0.15)" stroke-width="4"/>
+                <circle id="recRingBar" cx="45" cy="45" r="40" fill="none"
+                  stroke="#FF1A1A" stroke-width="4"
+                  stroke-dasharray="283" stroke-dashoffset="283"
+                  stroke-linecap="round" transform="rotate(-90 45 45)"
+                  style="transition:stroke-dashoffset 0.05s linear;"/>
+              </svg>
+              <div id="submitFrameBadge">0/60</div>
+            </div>
+          </div>
+
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+            <div class="button-row">
+              <button onclick="startSubmitCamera()">▶ CAM</button>
+              <button onclick="stopSubmitCamera()">■ STOP</button>
+              <!-- Thermal toggle for submit panel -->
+              <button id="thermalSubmitBtn" class="thermal-btn" data-active="false"
+                      onclick="toggleSubmitThermal()" disabled>THERMAL: OFF</button>
+            </div>
+            <div id="recLabel" class="rec-label">RECORDING</div>
+            <div id="submitFrameInfo" style="font-family:var(--mono);font-size:10px;color:var(--label);">
+              FRAME 00/60
+            </div>
+          </div>
+        </div>
+
+        <!-- Form side -->
+        <div class="submit-controls">
+
+          <button id="recBtn" onclick="toggleRecording()" disabled>● RECORD (60 FRAMES)</button>
+
+          <div class="capture-status">
+            <div id="captureDot"></div>
+            <span id="captureStatusText">Start camera, then record.</span>
+          </div>
+
+          <div class="button-row">
+            <button id="prevBtn" disabled onclick="previewCapture()">◈ PREVIEW</button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signName">SIGN NAME</label>
+            <input type="text" id="signName" maxlength="40" placeholder="e.g. HELLO" autocomplete="off" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signCategory">CATEGORY</label>
+            <select id="signCategory">
+              <option value="greeting">Greeting</option>
+              <option value="number">Number</option>
+              <option value="letter">Letter</option>
+              <option value="phrase">Phrase</option>
+              <option value="emotion">Emotion</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signHand">DOMINANT HAND</label>
+            <select id="signHand">
+              <option value="right">Right</option>
+              <option value="left">Left</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signNotes">NOTES (OPTIONAL)</label>
+            <textarea id="signNotes" maxlength="200" placeholder="Any notes about this sign…"></textarea>
+          </div>
+
+          <button id="submitBtn" class="primary" disabled onclick="submitSign()">✓ SUBMIT TO QUEUE</button>
+        </div>
+      </div>
+
+      <!-- Queue -->
+      <div>
+        <div class="queue-header">
+          <div class="panel-title" style="margin:0;">SUBMISSION QUEUE</div>
+          <div id="queueCount">0 PENDING</div>
+        </div>
+        <div id="queueList">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);padding:8px 0;letter-spacing:1px;">
+            No submissions yet.
+          </div>
+        </div>
+        <div class="button-row" style="margin-top:10px;">
+          <button onclick="exportAllSubmissions()">↓ EXPORT ALL</button>
+          <button class="danger" onclick="clearQueue()">✕ CLEAR</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+
+  <!-- App scripts — order matters -->
+  <script src="js/config.js"></script>
+  <script src="js/thermal.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/holistic.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/submit.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
