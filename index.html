@@ -335,13 +335,30 @@
       width: 100%;
       padding: 8px 20px 36px;
     }
-    .showcase-header {
+
+    /* Toggle button — looks like the existing panel-title bar */
+    .showcase-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-family: var(--mono);
+      transition: border-color 0.15s, background 0.15s;
+      margin-bottom: 0;
+    }
+    .showcase-toggle:hover {
+      border-color: var(--accent);
+      background: var(--surface2);
+    }
+    .showcase-toggle-left {
       display: flex;
       align-items: baseline;
       gap: 16px;
-      margin-bottom: 16px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
     }
     .showcase-title {
       font-family: var(--mono);
@@ -354,6 +371,27 @@
       font-size: 10px;
       letter-spacing: 1px;
       color: var(--text-dim);
+    }
+    .showcase-chevron {
+      font-size: 10px;
+      color: var(--text-dim);
+      transition: color 0.15s;
+    }
+    .showcase-toggle:hover .showcase-chevron { color: var(--accent); }
+
+    /* Collapsible body — hidden by default */
+    .showcase-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s ease;
+      overflow: hidden;
+    }
+    .showcase-body.open {
+      grid-template-rows: 1fr;
+    }
+    .showcase-body > .showcase-grid {
+      overflow: hidden;
+      padding-top: 12px;
     }
     .showcase-grid {
       display: grid;
@@ -502,131 +540,80 @@
     </div>
   </main>
 
-  <!-- ── Sign Showcase ── -->
+  <!-- ── Sign Showcase (dropdown) ── -->
   <section class="showcase-section">
-    <div class="showcase-header">
-      <span class="showcase-title">SUPPORTED SIGNS</span>
-      <span class="showcase-sub">hover to preview · model trained on 150 sequences per class</span>
-    </div>
-    <div class="showcase-grid">
+    <button class="showcase-toggle" onclick="toggleShowcase()" aria-expanded="false" id="showcaseToggle">
+      <span class="showcase-toggle-left">
+        <span class="showcase-title">SUPPORTED SIGNS</span>
+        <span class="showcase-sub">4 classes · 150 sequences each · mediapipe holistic keypoints</span>
+      </span>
+      <span class="showcase-chevron" id="showcaseChevron">▼</span>
+    </button>
+    <div class="showcase-body" id="showcaseBody">
+      <div class="showcase-grid">
 
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/hello.gif" alt="HELLO sign" class="sign-gif" loading="lazy" />
-          <div class="sign-gif-overlay">
-            <span class="sign-gif-label">HELLO</span>
+        <div class="sign-card">
+          <div class="sign-gif-wrap">
+            <img src="gifs/hello.gif" alt="HELLO sign demonstration" class="sign-gif" loading="lazy" />
+            <span class="sign-corner-badge">HELLO</span>
+          </div>
+          <div class="sign-card-footer">
+            <span class="sign-index">CLASS 00</span>
+            <span class="sign-name">HELLO</span>
+            <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 7px #1A3FFF;"></span>
           </div>
         </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 00</span>
-          <span class="sign-name">HELLO</span>
-          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 8px #1A3FFF;"></span>
-        </div>
-      </div>
 
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/thanks.gif" alt="THANKS sign" class="sign-gif" loading="lazy" />
-          <div class="sign-gif-overlay">
-            <span class="sign-gif-label">THANKS</span>
+        <div class="sign-card">
+          <div class="sign-gif-wrap">
+            <img src="gifs/thanks.gif" alt="THANKS sign demonstration" class="sign-gif" loading="lazy" />
+            <span class="sign-corner-badge">THANKS</span>
+          </div>
+          <div class="sign-card-footer">
+            <span class="sign-index">CLASS 01</span>
+            <span class="sign-name">THANKS</span>
+            <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 7px #22C55E;"></span>
           </div>
         </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 01</span>
-          <span class="sign-name">THANKS</span>
-          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 8px #22C55E;"></span>
-        </div>
-      </div>
 
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/yes.gif" alt="YES sign" class="sign-gif" loading="lazy" />
-          <div class="sign-gif-overlay">
-            <span class="sign-gif-label">YES</span>
+        <div class="sign-card">
+          <div class="sign-gif-wrap">
+            <img src="gifs/yes.gif" alt="YES sign demonstration" class="sign-gif" loading="lazy" />
+            <span class="sign-corner-badge">YES</span>
+          </div>
+          <div class="sign-card-footer">
+            <span class="sign-index">CLASS 02</span>
+            <span class="sign-name">YES</span>
+            <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 7px #FFA500;"></span>
           </div>
         </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 02</span>
-          <span class="sign-name">YES</span>
-          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 8px #FFA500;"></span>
-        </div>
-      </div>
 
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/no.gif" alt="NO sign" class="sign-gif" loading="lazy" />
-          <div class="sign-gif-overlay">
-            <span class="sign-gif-label">NO</span>
+        <div class="sign-card">
+          <div class="sign-gif-wrap">
+            <img src="gifs/no.gif" alt="NO sign demonstration" class="sign-gif" loading="lazy" />
+            <span class="sign-corner-badge">NO</span>
+          </div>
+          <div class="sign-card-footer">
+            <span class="sign-index">CLASS 03</span>
+            <span class="sign-name">NO</span>
+            <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 7px #FF1A1A;"></span>
           </div>
         </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 03</span>
-          <span class="sign-name">NO</span>
-          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 8px #FF1A1A;"></span>
-        </div>
-      </div>
 
+      </div>
     </div>
   </section>
 
-  <!-- ── Sign Showcase ── -->
-  <section class="showcase-section">
-    <div class="showcase-header">
-      <span class="showcase-title">SUPPORTED SIGNS</span>
-      <span class="showcase-sub">4 classes · 150 sequences each · mediapipe holistic keypoints</span>
-    </div>
-    <div class="showcase-grid">
-
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/hello.gif" alt="HELLO sign demonstration" class="sign-gif" loading="lazy" />
-          <span class="sign-corner-badge">HELLO</span>
-        </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 00</span>
-          <span class="sign-name">HELLO</span>
-          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 7px #1A3FFF;"></span>
-        </div>
-      </div>
-
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/thanks.gif" alt="THANKS sign demonstration" class="sign-gif" loading="lazy" />
-          <span class="sign-corner-badge">THANKS</span>
-        </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 01</span>
-          <span class="sign-name">THANKS</span>
-          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 7px #22C55E;"></span>
-        </div>
-      </div>
-
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/yes.gif" alt="YES sign demonstration" class="sign-gif" loading="lazy" />
-          <span class="sign-corner-badge">YES</span>
-        </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 02</span>
-          <span class="sign-name">YES</span>
-          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 7px #FFA500;"></span>
-        </div>
-      </div>
-
-      <div class="sign-card">
-        <div class="sign-gif-wrap">
-          <img src="gifs/no.gif" alt="NO sign demonstration" class="sign-gif" loading="lazy" />
-          <span class="sign-corner-badge">NO</span>
-        </div>
-        <div class="sign-card-footer">
-          <span class="sign-index">CLASS 03</span>
-          <span class="sign-name">NO</span>
-          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 7px #FF1A1A;"></span>
-        </div>
-      </div>
-
-    </div>
-  </section>
+  <script>
+    function toggleShowcase() {
+      var body    = document.getElementById('showcaseBody');
+      var btn     = document.getElementById('showcaseToggle');
+      var chevron = document.getElementById('showcaseChevron');
+      var open    = body.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open);
+      chevron.textContent = open ? '▲' : '▼';
+    }
+  </script>
 
   <footer>
     <span>MIZO · ISL RECOGNITION</span>
