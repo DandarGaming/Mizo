@@ -16,15 +16,6 @@
  
 </div>
  
----
- 
-## 📸 Demo
- 
-<img src="demo.gif" width="700"/>
-
- 
----
- 
 ## 📋 Table of Contents
  
 - [About](#-about)
