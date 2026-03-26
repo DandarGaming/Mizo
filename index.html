@@ -327,6 +327,114 @@
     .qi-btn { font-family: var(--mono); font-size: 11px; padding: 4px 7px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; border-radius: 2px; letter-spacing: 0; }
     .qi-btn:hover { border-color: var(--accent); color: #fff; }
     .qi-btn.dl:hover { border-color: var(--accent-green); color: var(--accent-green); }
+
+    /* ── Sign Showcase ─────────────────────────────── */
+    .showcase-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 8px 20px 36px;
+    }
+    .showcase-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .showcase-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: var(--label);
+    }
+    .showcase-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .showcase-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 480px) { .showcase-grid { grid-template-columns: 1fr; } }
+
+    .sign-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .sign-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 0 20px rgba(26,63,255,0.15);
+    }
+    .sign-gif-wrap {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: var(--surface2);
+    }
+    .sign-gif {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+      filter: grayscale(15%) contrast(1.05);
+      transition: filter 0.25s;
+    }
+    .sign-card:hover .sign-gif {
+      filter: grayscale(0%) contrast(1.1) brightness(1.05);
+    }
+    /* CRT scanline overlay */
+    .sign-gif-wrap::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+    .sign-corner-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      font-family: var(--mono);
+      font-size: 9px; letter-spacing: 2px;
+      color: rgba(255,255,255,0.45);
+      background: rgba(5,7,15,0.65);
+      padding: 2px 7px;
+      border: 1px solid rgba(26,63,255,0.22);
+      border-radius: 2px;
+      z-index: 2;
+    }
+    .sign-card-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-index {
+      font-family: var(--mono);
+      font-size: 9px; letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+    .sign-name {
+      font-family: var(--mono);
+      font-size: 12px; letter-spacing: 3px;
+      color: #fff; flex: 1;
+    }
+    .sign-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -393,12 +501,138 @@
       </div>
     </div>
   </main>
-    <p>Please Note this is a demo and this is not the final product</p>
+
+  <!-- ── Sign Showcase ── -->
+  <section class="showcase-section">
+    <div class="showcase-header">
+      <span class="showcase-title">SUPPORTED SIGNS</span>
+      <span class="showcase-sub">hover to preview · model trained on 150 sequences per class</span>
+    </div>
+    <div class="showcase-grid">
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/hello.gif" alt="HELLO sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">HELLO</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 00</span>
+          <span class="sign-name">HELLO</span>
+          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 8px #1A3FFF;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/thanks.gif" alt="THANKS sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">THANKS</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 01</span>
+          <span class="sign-name">THANKS</span>
+          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 8px #22C55E;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/yes.gif" alt="YES sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">YES</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 02</span>
+          <span class="sign-name">YES</span>
+          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 8px #FFA500;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/no.gif" alt="NO sign" class="sign-gif" loading="lazy" />
+          <div class="sign-gif-overlay">
+            <span class="sign-gif-label">NO</span>
+          </div>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 03</span>
+          <span class="sign-name">NO</span>
+          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 8px #FF1A1A;"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Sign Showcase ── -->
+  <section class="showcase-section">
+    <div class="showcase-header">
+      <span class="showcase-title">SUPPORTED SIGNS</span>
+      <span class="showcase-sub">4 classes · 150 sequences each · mediapipe holistic keypoints</span>
+    </div>
+    <div class="showcase-grid">
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/hello.gif" alt="HELLO sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">HELLO</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 00</span>
+          <span class="sign-name">HELLO</span>
+          <span class="sign-dot" style="background:#1A3FFF;box-shadow:0 0 7px #1A3FFF;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/thanks.gif" alt="THANKS sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">THANKS</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 01</span>
+          <span class="sign-name">THANKS</span>
+          <span class="sign-dot" style="background:#22C55E;box-shadow:0 0 7px #22C55E;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/yes.gif" alt="YES sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">YES</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 02</span>
+          <span class="sign-name">YES</span>
+          <span class="sign-dot" style="background:#FFA500;box-shadow:0 0 7px #FFA500;"></span>
+        </div>
+      </div>
+
+      <div class="sign-card">
+        <div class="sign-gif-wrap">
+          <img src="gifs/no.gif" alt="NO sign demonstration" class="sign-gif" loading="lazy" />
+          <span class="sign-corner-badge">NO</span>
+        </div>
+        <div class="sign-card-footer">
+          <span class="sign-index">CLASS 03</span>
+          <span class="sign-name">NO</span>
+          <span class="sign-dot" style="background:#FF1A1A;box-shadow:0 0 7px #FF1A1A;"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
   <footer>
     <span>MIZO · ISL RECOGNITION</span>
     <span id="footerClock">00:00:00 UTC</span>
   </footer>
-  
+
   <div id="toast"></div>
 
   <!-- Submit panel -->
