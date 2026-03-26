@@ -413,16 +413,16 @@ accuracy_score(ytrue, yhat)               # overall accuracy
 
 ## Roadmap
 
-- [x] Full-body keypoint extraction with MediaPipe Holistic
-- [x] Custom data collection pipeline with HUD overlay
-- [x] Stacked LSTM model with L2 regularisation and LayerNormalization
-- [x] TensorBoard logging + early stopping + learning rate scheduling
-- [x] Real-time inference with confidence visualisation
-- [x] Export model to TensorFlow Lite for mobile deployment
-- [x] Export model to TensorFlow.js for web deployment
-- [x] Browser-based web demo (no install required)
-- [ ] Add more ISL signs / expand vocabulary
-- [ ] GUI wrapper for non-technical users
+- ✅ Full-body keypoint extraction with MediaPipe Holistic
+- ✅ Custom data collection pipeline with HUD overlay
+- ✅ Stacked LSTM model with L2 regularisation and LayerNormalization
+- ✅ TensorBoard logging + early stopping + learning rate scheduling
+- ✅ Real-time inference with confidence visualisation
+- ✅ Export model to TensorFlow Lite for mobile deployment
+- ✅ Export model to TensorFlow.js for web deployment
+- ✅ Browser-based web demo (no install required)
+- ⬜ Add more ISL signs / expand vocabulary
+- ⬜ GUI wrapper for non-technical users
 
 Have an idea? [Open a feature request](../../issues)
 
