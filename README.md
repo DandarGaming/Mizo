@@ -20,11 +20,8 @@
  
 ## 📸 Demo
  
-> 🎥 *Add a screen recording or GIF of Mizo running live here — e.g. record your webcam session with [OBS](https://obsproject.com/) and convert to GIF with [ezgif.com](https://ezgif.com/)*
- 
-```
-[ demo.gif placeholder ]
-```
+<img src="demo.gif" width="700"/>
+
  
 ---
  
